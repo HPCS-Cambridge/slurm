@@ -130,6 +130,19 @@ typedef struct {
 	uint64_t total_rcvdata;
 	uint64_t total_xmtpkts;
 	uint64_t total_rcvpkts;
+  //
+  uint64_t xmtupkts;
+  uint64_t rcvupkts;
+  uint64_t xmtmpkts;
+  uint64_t rcvmpkts;
+  uint64_t err_rcv;
+  uint64_t vl15dropped;
+  uint64_t total_xmtupkts;
+  uint64_t total_rcvupkts;
+  uint64_t total_xmtmpkts;
+  uint64_t total_rcvmpkts;
+  uint64_t total_err_rcv;
+  uint64_t total_vl15dropped;
 } ofed_sens_t;
 
 static ofed_sens_t *ofed_sens = NULL;//{0,0,0,0,0,0,0,0};
@@ -139,6 +152,13 @@ typedef struct {
   uint64_t rcvdata;
   uint64_t xmtpkts;
   uint64_t rcvpkts;
+  //
+  uint64_t xmtupkts;
+  uint64_t rcvupkts;
+  uint64_t xmtmpkts;
+  uint64_t rcvmpkts;
+  uint64_t err_rcv;
+  uint64_t vl15dropped;
 } transcv_data;
 
 static transcv_data *last_update = NULL;
@@ -213,6 +233,19 @@ int _ofed_card_init(char *ib_card, int ib_port, transcv_data *trcv, uint16_t *ca
   mad_decode_field(pc, IB_PC_EXT_RCV_PKTS_F,
        &(trcv->rcvpkts));
 
+  mad_decode_field(pc, IB_PC_EXT_XMT_UPKTS_F,
+       &(trcv->xmtupkts));
+  mad_decode_field(pc, IB_PC_EXT_RCV_UPKTS_F,
+       &(trcv->rcvupkts));
+  mad_decode_field(pc, IB_PC_EXT_XMT_MPKTS_F,
+       &(trcv->xmtmpkts));
+  mad_decode_field(pc, IB_PC_EXT_RCV_MPKTS_F,
+       &(trcv->rcvmpkts));
+  mad_decode_field(pc, IB_PC_ERR_RCV_F,
+       &(trcv->err_rcv));
+  mad_decode_field(pc, IB_PC_VL15_DROPPED_F,
+       &(trcv->vl15dropped));
+
   if (debug_flags & DEBUG_FLAG_INFINIBAND)
     info("%s ofed init", plugin_name);
 
@@ -241,6 +274,9 @@ static int _read_ofed_values(void)
 
 	uint16_t cap_mask;
 	uint64_t send_val, recv_val, send_pkts, recv_pkts;
+
+  uint64_t send_upkts, recv_upkts, send_mpkts, recv_mpkts;
+  uint64_t recv_error, vl15_dropped;
 
 
 
@@ -316,6 +352,13 @@ static int _read_ofed_values(void)
     mad_decode_field(pc, IB_PC_EXT_XMT_PKTS_F, &send_pkts);
     mad_decode_field(pc, IB_PC_EXT_RCV_PKTS_F, &recv_pkts);
 
+    mad_decode_field(pc, IB_PC_EXT_XMT_UPKTS_F, &send_upkts);
+    mad_decode_field(pc, IB_PC_EXT_RCV_UPKTS_F, &recv_upkts);
+    mad_decode_field(pc, IB_PC_EXT_XMT_MPKTS_F, &send_mpkts);
+    mad_decode_field(pc, IB_PC_EXT_RCV_MPKTS_F, &recv_mpkts);
+    mad_decode_field(pc, IB_PC_ERR_RCV_F, &recv_error);
+    mad_decode_field(pc, IB_PC_VL15_DROPPED_F, &vl15_dropped);
+
     ofed_sens[i].xmtdata = (send_val - last_update[i].xmtdata) * 4;
     ofed_sens[i].total_xmtdata += ofed_sens[i].xmtdata;
     ofed_sens[i].rcvdata = (recv_val - last_update[i].rcvdata) * 4;
@@ -329,6 +372,27 @@ static int _read_ofed_values(void)
     last_update[i].rcvdata = recv_val;
     last_update[i].xmtpkts = send_pkts;
     last_update[i].rcvpkts = recv_pkts;
+
+    last_update[i].xmtupkts = send_upkts;
+    last_update[i].rcvupkts = recv_upkts;
+    last_update[i].xmtmpkts = send_mpkts;
+    last_update[i].rcvmpkts = recv_mpkts;
+    last_update[i].err_rcv = recv_error;
+    last_update[i].vl15dropped = vl15_dropped;
+
+    ofed_sens[i].xmtupkts = send_upkts - last_update[i].xmtupkts;
+    ofed_sens[i].total_xmtupkts += ofed_sens[i].xmtupkts;
+    ofed_sens[i].rcvupkts = recv_upkts - last_update[i].rcvupkts;
+    ofed_sens[i].total_rcvupkts += ofed_sens[i].rcvupkts;
+    ofed_sens[i].xmtmpkts = send_mpkts - last_update[i].xmtmpkts;
+    ofed_sens[i].total_xmtmpkts += ofed_sens[i].xmtmpkts;
+    ofed_sens[i].rcvmpkts = recv_mpkts - last_update[i].rcvmpkts;
+    ofed_sens[i].total_rcvmpkts += ofed_sens[i].rcvmpkts;
+
+    ofed_sens[i].err_rcv = recv_error - last_update[i].err_rcv;
+    ofed_sens[i].total_err_rcv += ofed_sens[i].err_rcv;
+    ofed_sens[i].vl15dropped = vl15_dropped - last_update[i].vl15dropped;
+    ofed_sens[i].total_vl15dropped += ofed_sens[i].vl15dropped;
   }
 
 	return rc;
@@ -349,6 +413,12 @@ static int _update_node_infiniband(void)
 	enum {
 		FIELD_PACKIN,
 		FIELD_PACKOUT,
+    FIELD_UPACKIN,
+    FIELD_UPACKOUT,
+    FIELD_MPACKIN,
+    FIELD_MPACKOUT,
+    FIELD_RECVERR,
+    FIELD_VL15DROP,
 		FIELD_MBIN,
 		FIELD_MBOUT,
 		FIELD_CNT
@@ -357,6 +427,12 @@ static int _update_node_infiniband(void)
 	acct_gather_profile_dataset_t dataset[] = {
 		{ "PacketsIn", PROFILE_FIELD_UINT64 },
 		{ "PacketsOut", PROFILE_FIELD_UINT64 },
+		{ "UPacketsIn", PROFILE_FIELD_UINT64 },
+		{ "UPacketsOut", PROFILE_FIELD_UINT64 },
+		{ "MPacketsIn", PROFILE_FIELD_UINT64 },
+		{ "MPacketsOut", PROFILE_FIELD_UINT64 },
+		{ "ReceiveErrors", PROFILE_FIELD_UINT64 },
+		{ "VL15Dropped", PROFILE_FIELD_UINT64 },
 		{ "InMB", PROFILE_FIELD_DOUBLE },
 		{ "OutMB", PROFILE_FIELD_DOUBLE },
 		{ NULL, PROFILE_FIELD_NOT_SET }
@@ -369,32 +445,34 @@ static int _update_node_infiniband(void)
 
 
   // FIXME MARK ORIG
-    if (dataset_ids == NULL) {
-      dataset_ids = xmalloc(ofed_conf.cards * sizeof(int));
-      if (NULL == dataset_ids) {
-        error("IB: No cards configured or failed to allocate memory"); //TODO
+  if (dataset_ids == NULL) {
+    dataset_ids = xmalloc(ofed_conf.cards * sizeof(int));
+    if (NULL == dataset_ids) {
+      error("IB: No cards configured or failed to allocate memory"); //TODO
+      return SLURM_ERROR;
+    }
+
+    for (i = 0; i < ofed_conf.cards; i++) {
+      //FIXME this WILL break on old-style config
+      sprintf(network_name[i], "NETWORK-%s:%d", ofed_conf.names[i], ofed_conf.ports[i]);
+      dataset_ids[i] = acct_gather_profile_g_create_dataset(network_name[i],
+        NO_PARENT, dataset);
+      if (debug_flags & DEBUG_FLAG_INFINIBAND)
+        debug("IB: dataset created (id = %d)", dataset_ids[i]);
+      if (dataset_ids[i] == SLURM_ERROR) {
+        error("IB: Failed to create the dataset for ofed");
+        xfree(dataset_ids);
         return SLURM_ERROR;
       }
-
-      for (i = 0; i < ofed_conf.cards; i++) {
-        sprintf(network_name[i], "NETWORK-%d", i);
-        dataset_ids[i] = acct_gather_profile_g_create_dataset(network_name[i],
-          NO_PARENT, dataset);
-        if (debug_flags & DEBUG_FLAG_INFINIBAND)
-          debug("IB: dataset created (id = %d)", dataset_ids[i]);
-        if (dataset_ids[i] == SLURM_ERROR) {
-          error("IB: Failed to create the dataset for ofed");
-          return SLURM_ERROR;
-        }
-      }
     }
+  }
 
 
-    slurm_mutex_lock(&ofed_lock);
-    if ((rc = _read_ofed_values()) != SLURM_SUCCESS) {
-      slurm_mutex_unlock(&ofed_lock);
-      return rc;
-    }
+  slurm_mutex_lock(&ofed_lock);
+  if ((rc = _read_ofed_values()) != SLURM_SUCCESS) {
+    slurm_mutex_unlock(&ofed_lock);
+    return rc;
+  }
 
   for (i = 0; i < ofed_conf.cards; i++) {
     //TODO cleanup, better location (originally @ MARK ORIG)
@@ -404,6 +482,12 @@ static int _update_node_infiniband(void)
 
     data[FIELD_PACKIN].u64 = ofed_sens[i].rcvpkts;
     data[FIELD_PACKOUT].u64 = ofed_sens[i].xmtpkts;
+    data[FIELD_UPACKIN].u64 = ofed_sens[i].xmtupkts;
+    data[FIELD_UPACKOUT].u64 = ofed_sens[i].rcvupkts;
+    data[FIELD_MPACKIN].u64 = ofed_sens[i].xmtmpkts;
+    data[FIELD_MPACKOUT].u64 = ofed_sens[i].rcvmpkts;
+    data[FIELD_RECVERR].u64 = ofed_sens[i].err_rcv;
+    data[FIELD_VL15DROP].u64 = ofed_sens[i].vl15dropped;
     data[FIELD_MBIN].d = (double) ofed_sens[i].rcvdata / (1 << 20);
     data[FIELD_MBOUT].d = (double) ofed_sens[i].xmtdata / (1 << 20);
 
