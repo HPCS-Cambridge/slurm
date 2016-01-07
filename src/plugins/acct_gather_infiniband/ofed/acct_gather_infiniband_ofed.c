@@ -106,6 +106,14 @@ const char plugin_name[] = "AcctGatherInfiniband OFED plugin";
 const char plugin_type[] = "acct_gather_infiniband/ofed";
 const uint32_t plugin_version = SLURM_VERSION_NUMBER;
 
+/* Checking every single alloc leads to messy code */
+#define TRY_ALLOC(_toalloc, _size, _failtag) \
+{ \
+  if (!(_toalloc = xmalloc(_size))) { \
+    goto _failtag; \
+  } \
+}
+
 typedef struct {
 	uint32_t *ports;
   char     **names;
@@ -252,21 +260,12 @@ int _ofed_card_init(char *ib_card, int ib_port, transcv_data *trcv, uint16_t *ca
   return SLURM_SUCCESS;
 }
 
+
 /*
  * _read_ofed_values read the IB sensor and update last_update values and times
  */
 static int _read_ofed_values(void)
 {
-
-  /* TODO array-i-fy */
-	//static uint64_t last_update_xmtdata = 0;
-	//static uint64_t last_update_rcvdata = 0;
-	//static uint64_t last_update_xmtpkts = 0;
-	//static uint64_t last_update_rcvpkts = 0;
-	/*static uint64_t *last_update_xmtdata = NULL;
-	static uint64_t *last_update_rcvdata = NULL;
-	static uint64_t *last_update_xmtpkts = NULL;
-	static uint64_t *last_update_rcvpkts = NULL;*/
 	static bool first = true;
 
 	int rc = SLURM_SUCCESS;
@@ -278,55 +277,37 @@ static int _read_ofed_values(void)
   uint64_t send_upkts, recv_upkts, send_mpkts, recv_mpkts;
   uint64_t recv_error, vl15_dropped;
 
-
-
-
-
-
-
 	if (first) {
-    if (ofed_conf.cards) {
-      /*last_update_xmtdata = xmalloc(ofed_conf.cards*sizeof(uint64_t));
-      last_update_rcvdata = xmalloc(ofed_conf.cards*sizeof(uint64_t));
-      last_update_xmtpkts = xmalloc(ofed_conf.cards*sizeof(uint64_t));
-      last_update_rcvpkts = xmalloc(ofed_conf.cards*sizeof(uint64_t));*/
-      last_update = xmalloc(ofed_conf.cards*sizeof(transcv_data));
-      srcport = xmalloc(ofed_conf.cards*sizeof(struct ibmad_port*));
-      portid = xmalloc(ofed_conf.cards*sizeof(ib_portid_t));
-      port = xmalloc(ofed_conf.cards*sizeof(int));
-      ibd_timeout = xmalloc(ofed_conf.cards*sizeof(int));
-      for (i = 0; i < ofed_conf.cards; i++) {
-        if(SLURM_ERROR == _ofed_card_init(ofed_conf.names[i], ofed_conf.ports[i],
-              &last_update[i], &cap_mask, i)) {
-          error("MULTI ERROR");
-          return SLURM_ERROR;
-        }
-      }
-    }
-    else {
-      /*last_update_xmtdata = xmalloc(sizeof(uint64_t));
-      last_update_rcvdata = xmalloc(sizeof(uint64_t));
-      last_update_xmtpkts = xmalloc(sizeof(uint64_t));
-      last_update_rcvpkts = xmalloc(sizeof(uint64_t));*/
-      last_update = xmalloc(sizeof(transcv_data));
-      srcport = xmalloc(sizeof(struct ibmad_port*));
-      portid = xmalloc(sizeof(ib_portid_t));
-      port = xmalloc(sizeof(int));
-      ibd_timeout = xmalloc(sizeof(int));
-      if (SLURM_ERROR == _ofed_card_init(NULL, ofed_conf.port,
-          last_update, &cap_mask, 0)) {
-          error("SINGLE ERROR");
+    TRY_ALLOC(last_update, ofed_conf.cards*sizeof(transcv_data), rov_fail);
+    TRY_ALLOC(srcport, ofed_conf.cards*sizeof(struct ibmad_port*), rov_fail);
+    TRY_ALLOC(portid, ofed_conf.cards*sizeof(ib_portid_t), rov_fail);
+    TRY_ALLOC(port, ofed_conf.cards*sizeof(int), rov_fail);
+    TRY_ALLOC(ibd_timeout, ofed_conf.cards*sizeof(int), rov_fail);
+
+    for (i = 0; i < ofed_conf.cards; i++) {
+      if(SLURM_ERROR == _ofed_card_init(ofed_conf.names[i], ofed_conf.ports[i],
+            &last_update[i], &cap_mask, i)) {
         return SLURM_ERROR;
       }
     }
 
     /* Need to calloc ofed_conf.cards ofed_sens structs. */
-    ofed_sens = xmalloc(ofed_conf.cards * sizeof(ofed_sens_t)); // xmalloc is calloc, xmallox_nz is malloc. Obvs.
+    TRY_ALLOC(ofed_sens, ofed_conf.cards * sizeof(ofed_sens_t), rov_fail); // xmalloc is calloc, xmallox_nz is malloc. Obvs.
     for (i = 0; i < ofed_conf.cards; i++) {
       ofed_sens[i].update_time = time(NULL);
     }
+
     first = false;
     return SLURM_SUCCESS;
+
+rov_fail:
+    xfree(last_update);
+    xfree(srcport);
+    xfree(portid);
+    xfree(port);
+    xfree(ibd_timeout);
+    xfree(ofed_sens);
+    return SLURM_ERROR;
 	}
 
   for (i = 0; i < ofed_conf.cards; i++) {
@@ -453,8 +434,13 @@ static int _update_node_infiniband(void)
     }
 
     for (i = 0; i < ofed_conf.cards; i++) {
-      //FIXME this WILL break on old-style config
-      sprintf(network_name[i], "NETWORK-%s:%d", ofed_conf.names[i], ofed_conf.ports[i]);
+      if (ofed_conf.cards == 1) {
+        sprintf(network_name[i], "NETWORK");
+      }
+      else {
+        sprintf(network_name[i], "NETWORK-%s:%d", ofed_conf.names[i], ofed_conf.ports[i]);
+      }
+
       dataset_ids[i] = acct_gather_profile_g_create_dataset(network_name[i],
         NO_PARENT, dataset);
       if (debug_flags & DEBUG_FLAG_INFINIBAND)
@@ -482,10 +468,10 @@ static int _update_node_infiniband(void)
 
     data[FIELD_PACKIN].u64 = ofed_sens[i].rcvpkts;
     data[FIELD_PACKOUT].u64 = ofed_sens[i].xmtpkts;
-    data[FIELD_UPACKIN].u64 = ofed_sens[i].xmtupkts;
-    data[FIELD_UPACKOUT].u64 = ofed_sens[i].rcvupkts;
-    data[FIELD_MPACKIN].u64 = ofed_sens[i].xmtmpkts;
-    data[FIELD_MPACKOUT].u64 = ofed_sens[i].rcvmpkts;
+    data[FIELD_UPACKIN].u64 = ofed_sens[i].rcvupkts;
+    data[FIELD_UPACKOUT].u64 = ofed_sens[i].xmtupkts;
+    data[FIELD_MPACKIN].u64 = ofed_sens[i].rcvmpkts;
+    data[FIELD_MPACKOUT].u64 = ofed_sens[i].xmtmpkts;
     data[FIELD_RECVERR].u64 = ofed_sens[i].err_rcv;
     data[FIELD_VL15DROP].u64 = ofed_sens[i].vl15dropped;
     data[FIELD_MBIN].d = (double) ofed_sens[i].rcvdata / (1 << 20);
@@ -597,15 +583,15 @@ int acct_gather_infiniband_parse_ofed_config(char *config)
   token = strtok(conf_str, ",");
   do {
     count++;
-    cards = xrealloc(cards, count * sizeof(char*));
+    cards = xrealloc(cards, count * sizeof(char*)); // TODO check
     cards[count-1] = xstrdup(token);
   } while ((token = strtok(NULL, ",")));
 
   xfree(conf_str);
 
   ofed_conf.cards = count;
-  ofed_conf.names = xmalloc(count * sizeof(char*));
-  ofed_conf.ports = xmalloc(count * sizeof(int));
+  TRY_ALLOC(ofed_conf.names, count * sizeof(char*), parse_fail);
+  TRY_ALLOC(ofed_conf.ports, count * sizeof(int), parse_fail);
 
   for(i = 0; i < count; i++) {
     token = strtok(cards[i], ":");
@@ -623,7 +609,12 @@ int acct_gather_infiniband_parse_ofed_config(char *config)
 
   error("PARSE_OFED_CONFIG");//NOPE
 
-  return 0;
+  return SLURM_SUCCESS;
+
+parse_fail:
+  xfree(ofed_conf.names);
+  xfree(ofed_conf.ports);
+  return SLURM_ERROR;
 }
 
 
@@ -632,16 +623,19 @@ extern void acct_gather_infiniband_p_conf_set(s_p_hashtbl_t *tbl)
   char *ofed_config = NULL;
 
 	if (tbl) {
-		if (!s_p_get_uint32(&ofed_conf.port,
-				    "InfinibandOFEDPort", tbl))
+		if (!s_p_get_uint32(&ofed_conf.port, "InfinibandOFEDPort", tbl)) {
 			ofed_conf.port = INFINIBAND_DEFAULT_PORT;
-
-    if (!s_p_get_string(&ofed_config, "InfinibandOFEDConfig", tbl)
-        || acct_gather_infiniband_parse_ofed_config(ofed_config)) { //ofed_conf as param?
-      error("Incorrect InfinibandOFEDConfig value: %s", ofed_config);
+      if (!s_p_get_string(&ofed_config, "InfinibandOFEDConfig", tbl)
+          || acct_gather_infiniband_parse_ofed_config(ofed_config)) { //ofed_conf as param?
+        error("Incorrect InfinibandOFEDConfig value: %s", ofed_config);
+        ofed_conf.cards = 1;
+      }
     }
     else {
-      debug("Using Infiniband config: %s", ofed_config);
+
+      //else {
+        debug("Using Infiniband config: %s", ofed_config);
+      //}
     }
 
     if (ofed_config) {
@@ -649,14 +643,10 @@ extern void acct_gather_infiniband_p_conf_set(s_p_hashtbl_t *tbl)
     }
 	}
 
-  error("P_CONF_SET");//NOPE
 	if (!_run_in_daemon())
-      error("NOPE");
 		return;
 
-      error("YEP");
 	debug("%s loaded", plugin_name);
-	//ofed_sens.update_time = time(NULL);
 }
 
 extern void acct_gather_infiniband_p_conf_options(s_p_options_t **full_options,
@@ -668,8 +658,6 @@ extern void acct_gather_infiniband_p_conf_options(s_p_options_t **full_options,
 		{NULL} };
 
 	transfer_s_p_options(full_options, options, full_options_cnt);
-
-  error("P_CONF_OPTIONS");//NOPE
 
 	return;
 }
@@ -689,8 +677,6 @@ extern void acct_gather_infiniband_p_conf_values(List *data)
 	key_pair->name = xstrdup("InfinibandOFEDConfig");
 	key_pair->value = xstrdup_printf("TODO");//TODO
 	list_append(*data, key_pair);
-
-  error("P_CONF_VALUES");//NOPE
 
 	return;
 }
