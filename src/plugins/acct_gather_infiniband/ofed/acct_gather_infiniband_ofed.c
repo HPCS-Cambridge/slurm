@@ -449,11 +449,12 @@ extern int fini(void)
 	if (!_run_in_daemon())
 		return SLURM_SUCCESS;
 
-return SLURM_SUCCESS;
-  for(int i = 0; i < ofed_conf.cards; i++) {//TODO
-    if (srcport[i]) {
-      _update_node_infiniband();
-      mad_rpc_close_port(srcport[i]);
+  if (srcport) {
+    _update_node_infiniband();
+    for(int i = 0; i < ofed_conf.cards; i++) {//TODO
+      if (srcport[i]) {
+        mad_rpc_close_port(srcport[i]);
+      }
     }
   }
 
