@@ -406,16 +406,17 @@ extern int init(void)
 
 extern int fini(void)
 {
+	int i;
 	if (!_run_in_daemon())
 		return SLURM_SUCCESS;
 
 	if (srcport) {
 		//_update_node_infiniband();
-    for(int i = 0; i < ofed_conf.cards; i++) { //TODO hangs now for some reason
-      if(srcport[i]) {
-		    mad_rpc_close_port(srcport[i]);
-      }
-    }
+		for(i = 0; i < ofed_conf.cards; i++) {
+			if(srcport[i]) {
+				mad_rpc_close_port(srcport[i]);
+			}
+		}
 	}
 
 	if (debug_flags & DEBUG_FLAG_INFINIBAND)
