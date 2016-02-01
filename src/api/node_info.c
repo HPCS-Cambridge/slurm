@@ -397,6 +397,27 @@ slurm_sprint_node_table (node_info_t * node_ptr,
 	else
 		xstrcat(out, "\n   ");
 
+	/****** GPU Power Draw Line(s)*****/
+	if (node_ptr->energy && node_ptr->energy->gpu_watts) {
+		int i;
+		for(i = 0; i < node_ptr->energy->num_gpus; i++) {
+			if (i && (i%3 == 0) && !one_liner) {
+				snprintf(tmp_line, sizeof(tmp_line), "GPU%dWatts=%"PRIu64"\n",
+						i, node_ptr->energy->gpu_watts[i]);
+			}
+			else {
+				snprintf(tmp_line, sizeof(tmp_line), "GPU%dWatts=%"PRIu64" ",
+						i, node_ptr->energy->gpu_watts[i]);
+			}
+			xstrcat(out, tmp_line);
+		}
+
+		if (one_liner)
+			xstrcat(out, " ");
+		else
+			xstrcat(out, "\n   ");
+	}
+
 	/****** external sensors Line ******/
 	if (!node_ptr->ext_sensors
 	    || node_ptr->ext_sensors->consumed_energy == NO_VAL)

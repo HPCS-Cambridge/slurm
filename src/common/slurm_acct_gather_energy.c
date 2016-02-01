@@ -156,14 +156,24 @@ extern int acct_gather_energy_fini(void)
 
 extern acct_gather_energy_t *acct_gather_energy_alloc(uint16_t cnt)
 {
+	int i;
 	acct_gather_energy_t *energy =
 		xmalloc(sizeof(struct acct_gather_energy) * cnt);
+
+	/* TODO verify: xmallox should zero-fill allocations, but let's be certain
+	 * before removing the following statement. */
+	for (i = 0; i < cnt; i++) {
+		energy[i].gpu_watts = NULL;
+	}
 
 	return energy;
 }
 
 extern void acct_gather_energy_destroy(acct_gather_energy_t *energy)
 {
+	if (energy->gpu_watts) {
+		xfree(energy->gpu_watts);
+	}
 	xfree(energy);
 }
 
@@ -177,6 +187,7 @@ extern void acct_gather_energy_pack(acct_gather_energy_t *energy, Buf buffer,
 			pack64(0, buffer);
 			pack32(0, buffer);
 			pack64(0, buffer);
+			pack32(0, buffer);
 			pack_time(0, buffer);
 			return;
 		}
@@ -186,6 +197,15 @@ extern void acct_gather_energy_pack(acct_gather_energy_t *energy, Buf buffer,
 		pack64(energy->consumed_energy, buffer);
 		pack32(energy->current_watts, buffer);
 		pack64(energy->previous_consumed_energy, buffer);
+		/* GPUs */
+		if (energy->gpu_watts) {
+			pack32(energy->num_gpus, buffer);
+			pack64_array(energy->gpu_watts, energy->num_gpus, buffer);
+		}
+		else {
+			pack32(0, buffer);
+		}
+		/* END GPUs*/
 		pack_time(energy->poll_time, buffer);
 	} else if (protocol_version >= SLURM_MIN_PROTOCOL_VERSION) {
 		if (!energy) {
@@ -211,6 +231,8 @@ extern int acct_gather_energy_unpack(acct_gather_energy_t **energy, Buf buffer,
 	uint32_t uint32_tmp;
 	acct_gather_energy_t *energy_ptr;
 
+	//grow_buf(buffer, BUF_SIZE);
+
 	if (need_alloc) {
 		energy_ptr = acct_gather_energy_alloc(1);
 		*energy = energy_ptr;
@@ -224,6 +246,19 @@ extern int acct_gather_energy_unpack(acct_gather_energy_t **energy, Buf buffer,
 		safe_unpack64(&energy_ptr->consumed_energy, buffer);
 		safe_unpack32(&energy_ptr->current_watts, buffer);
 		safe_unpack64(&energy_ptr->previous_consumed_energy, buffer);
+		safe_unpack32(&energy_ptr->num_gpus, buffer);
+
+		if (!energy_ptr->gpu_watts) {
+			energy_ptr->gpu_watts = xmalloc(energy_ptr->num_gpus * sizeof(uint64_t));
+			if(!energy_ptr->gpu_watts) {
+				error("energy_unpack: could not allocate memory");
+				energy_ptr->gpu_watts = 0;
+			}
+		}
+
+		if(energy_ptr->num_gpus) {
+			unpack64_array(&energy_ptr->gpu_watts, &energy_ptr->num_gpus, buffer);
+		}
 		safe_unpack_time(&energy_ptr->poll_time, buffer);
 	} else if (protocol_version >= SLURM_MIN_PROTOCOL_VERSION) {
 		safe_unpack32(&uint32_tmp, buffer);
@@ -292,6 +327,7 @@ extern int acct_gather_energy_startpoll(uint32_t frequency)
 	int retval = SLURM_SUCCESS;
 	pthread_attr_t attr;
 	pthread_t _watch_node_thread_id;
+	error("startpoll");
 
 	if (slurm_acct_gather_energy_init() < 0)
 		return SLURM_ERROR;
