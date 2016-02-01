@@ -401,8 +401,8 @@ slurm_sprint_node_table (node_info_t * node_ptr,
 	if (node_ptr->energy && node_ptr->energy->gpu_watts) {
 		int i;
 		for(i = 0; i < node_ptr->energy->num_gpus; i++) {
-			if (i && (i%3 == 0) && !one_liner) {
-				snprintf(tmp_line, sizeof(tmp_line), "GPU%dWatts=%"PRIu64"\n",
+			if ((i+1)%4 == 0) {
+				snprintf(tmp_line, sizeof(tmp_line), "GPU%dWatts=%"PRIu64"\n   ",
 						i, node_ptr->energy->gpu_watts[i]);
 			}
 			else {
@@ -412,10 +412,9 @@ slurm_sprint_node_table (node_info_t * node_ptr,
 			xstrcat(out, tmp_line);
 		}
 
-		if (one_liner)
-			xstrcat(out, " ");
-		else
+		if (!(node_ptr->energy->num_gpus % 4)) {
 			xstrcat(out, "\n   ");
+		}
 	}
 
 	/****** external sensors Line ******/

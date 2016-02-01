@@ -73,6 +73,8 @@
 #define _DEBUG 1
 #define _DEBUG_ENERGY 1
 
+#define MAX_GPUS 8
+
 #define NVCHECK(_err) {								\
 	if(NVML_SUCCESS != _err) {					\
 		error("nvml: %s", __FUNCTION__);	\
@@ -303,6 +305,11 @@ extern int init(void)
 	NVCHECK(nvmlDeviceGetCount(&num_gpus));
 	debug("Found %d GPUs", num_gpus);
 
+	if (num_gpus > MAX_GPUS) {
+		error("Too many GPUS!");
+		return SLURM_ERROR;
+	}
+
 	gpus = xmalloc(num_gpus*sizeof(nvmlDevice_t));
 	if (!gpus) {
 		error("Energy: init: Could not allocate memory for GPU devices");
@@ -311,7 +318,7 @@ extern int init(void)
 
 	for (i = 0; i < num_gpus; i++) {
 		NVCHECK(nvmlDeviceGetHandleByIndex(i, &gpus[i]));
-	}num_gpus=2;
+	}num_gpus=8;
 
 	gpu_watts = xmalloc(num_gpus * sizeof(int));
 	if (!gpu_watts) {
