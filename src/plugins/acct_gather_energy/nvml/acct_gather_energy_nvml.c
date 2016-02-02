@@ -169,7 +169,7 @@ static void _get_joules_task(acct_gather_energy_t *energy) // One of our main bu
 
 	//power_sum = round(power_sum/1000.); //TODO  Do we want to round? Floor? Or just keep milliwatts? Or both (round/floor report, milliwatts for further calculations)? This line is the reason we need -lm by the way
 
-	error("[GPU]Total power: %dW", power_sum);
+	//error("[GPU]Total power: %dW", power_sum);
 
 	if (energy->consumed_energy) {
 		uint16_t node_freq;
@@ -270,7 +270,7 @@ static int _send_profile(void)
 extern int acct_gather_energy_p_update_node_energy(void)
 {
 	int rc = SLURM_SUCCESS;
-	error("update node energy");
+	//error("update node energy");
 
 	xassert(_run_in_daemon());
 
@@ -352,6 +352,8 @@ extern int fini(void)
 	return SLURM_SUCCESS;
 }
 
+/* Need to make a copy of gpu_watts array, otherwise crashy crashy since this
+ * copy is destroyed, freeing the array. */
 void _copy_energy(acct_gather_energy_t *energy)
 {
 	if (energy && energy->gpu_watts) {
@@ -380,7 +382,7 @@ extern int acct_gather_energy_p_get_data(enum acct_energy_type data_type,
 	uint16_t *sensor_cnt = (uint16_t *)data;
 
 	xassert(_run_in_daemon());
-	error("[NVML] get_data: dt = %d", data_type);
+	//error("[NVML] get_data: dt = %d", data_type);
 
 	switch (data_type) {
 	case ENERGY_DATA_JOULES_TASK:
@@ -420,7 +422,7 @@ extern int acct_gather_energy_p_set_data(enum acct_energy_type data_type,
 
 	xassert(_run_in_daemon());
 
-	error("[NVML] set_data");
+	//error("[NVML] set_data");
 
 	switch (data_type) {
 	case ENERGY_DATA_RECONFIG:

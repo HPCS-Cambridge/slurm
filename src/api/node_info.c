@@ -412,7 +412,7 @@ slurm_sprint_node_table (node_info_t * node_ptr,
 			xstrcat(out, tmp_line);
 		}
 
-		if (!(node_ptr->energy->num_gpus % 4)) {
+		if (node_ptr->energy->num_gpus % 4) {
 			xstrcat(out, "\n   ");
 		}
 	}
