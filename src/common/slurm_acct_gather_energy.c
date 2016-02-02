@@ -198,7 +198,7 @@ extern void acct_gather_energy_pack(acct_gather_energy_t *energy, Buf buffer,
 		pack32(energy->current_watts, buffer);
 		pack64(energy->previous_consumed_energy, buffer);
 		/* GPUs */
-		if (energy->gpu_watts) {
+		if (energy->num_gpus && energy->gpu_watts) {
 			pack32(energy->num_gpus, buffer);
 			pack64_array(energy->gpu_watts, energy->num_gpus, buffer);
 		}
