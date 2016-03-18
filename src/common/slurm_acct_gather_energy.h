@@ -98,5 +98,6 @@ extern void acct_gather_energy_g_conf_set(s_p_hashtbl_t *tbl);
  * src/common/slurm_acct_gather.c (acct_gather_get_values())
  */
 extern void acct_gather_energy_g_conf_values(void *data);
+//#define acct_gather_energy_destroy(x) _acct_gather_energy_destroy(x, __func__)
 
 #endif /*__SLURM_ACCT_GATHER_ENERGY_H__*/

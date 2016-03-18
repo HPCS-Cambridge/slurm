@@ -1321,6 +1321,8 @@ typedef struct dynamic_plugin_data {
 	uint32_t plugin_id;
 } dynamic_plugin_data_t;
 
+#define MAX_GPUS 8
+
 typedef struct acct_gather_energy {
 	uint64_t base_consumed_energy;
 	uint32_t base_watts;	  /* lowest power consump of node, in watts */
@@ -1328,7 +1330,7 @@ typedef struct acct_gather_energy {
 	uint32_t current_watts;	  /* current power consump of node, in watts */
 	uint64_t previous_consumed_energy;
 	uint32_t num_gpus;				/* Number of GPUs, needed for pack/unpack */
-	uint64_t *gpu_watts;			/* Current per-GPU power draw, in watts */
+	uint32_t gpu_watts[MAX_GPUS];			/* Current per-GPU power draw, in watts */
 	time_t poll_time;         /* When information was last retrieved */
 } acct_gather_energy_t;
 

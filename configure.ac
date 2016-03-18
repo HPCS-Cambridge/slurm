@@ -522,6 +522,7 @@ AC_CONFIG_FILES([Makefile
 		 src/plugins/acct_gather_energy/ibmaem/Makefile
 		 src/plugins/acct_gather_energy/ipmi/Makefile
 		 src/plugins/acct_gather_energy/none/Makefile
+		 src/plugins/acct_gather_energy/nvml/Makefile
 		 src/plugins/acct_gather_infiniband/Makefile
 		 src/plugins/acct_gather_infiniband/ofed/Makefile
 		 src/plugins/acct_gather_infiniband/none/Makefile

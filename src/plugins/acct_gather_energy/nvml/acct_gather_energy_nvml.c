@@ -73,7 +73,7 @@
 #define _DEBUG 1
 #define _DEBUG_ENERGY 1
 
-#define MAX_GPUS 8
+//#define MAX_GPUS 8
 
 #define NVCHECK(_err) {								\
 	if(NVML_SUCCESS != _err) {					\
@@ -127,7 +127,7 @@ static int dataset_id = -1; /* id of the dataset for profile data */
 static nvmlReturn_t nverr = NVML_SUCCESS;
 static unsigned int num_gpus = 0;
 static nvmlDevice_t *gpus = NULL;
-static int *gpu_watts;
+static int gpu_watts[MAX_GPUS];
 static acct_gather_energy_t *local_energy = NULL;
 
 static bool _run_in_daemon(void)
@@ -150,19 +150,20 @@ static void _get_joules_task(acct_gather_energy_t *energy) // One of our main bu
 
 	xassert(_run_in_daemon());
 
-	if (!energy->gpu_watts) {
-		energy->gpu_watts = xmalloc(num_gpus * sizeof(uint64_t));
-		if (!energy->gpu_watts) {
-			error("Could not allocate gpu_watts");
-			return;
-		}
-	}
+	//if (!energy->gpu_watts) {
+	//	energy->gpu_watts = xmalloc(num_gpus * sizeof(uint64_t));
+	//	if (!energy->gpu_watts) {
+	//		error("Could not allocate gpu_watts");
+	//		return;
+	//	}
+	//}
 
 	for (i = 0; i < num_gpus; i++) {
-		/*NVCHECK(nvmlDeviceGetPowerUsage(gpus[i], &power));*/
+		NVCHECK(nvmlDeviceGetPowerUsage(gpus[i], &power));
 		//error("[%d] Errval: %d", i, nvmlDeviceGetPowerUsage(gpus[i], &power));
-		power = rand(); // TODO necessary until Fermi GPU is available.
-		power = round(power/1000.);
+		//power = rand(); // TODO necessary until Fermi GPU is available.
+		//power = round(power/1000.);
+		power = power/1000;
 		power_sum += power;
 		energy->gpu_watts[i] = (uint64_t)power;
 	}
@@ -318,16 +319,17 @@ extern int init(void)
 
 	for (i = 0; i < num_gpus; i++) {
 		NVCHECK(nvmlDeviceGetHandleByIndex(i, &gpus[i]));
-	}num_gpus=8;
+	};
 
-	gpu_watts = xmalloc(num_gpus * sizeof(int));
-	if (!gpu_watts) {
-		error("Energy: init: Could not allocate memory for GPU power");
-		return SLURM_ERROR;
-	}
+	//gpu_watts = xmalloc(num_gpus * sizeof(int));
+	//if (!gpu_watts) {
+	//	error("Energy: init: Could not allocate memory for GPU power");
+	//	return SLURM_ERROR;
+	//}
 
 	local_energy = acct_gather_energy_alloc(1); // WHY is there no retval checking in this func?
 	local_energy->num_gpus = num_gpus;
+//	local_energy->gpu_watts = gpu_watts;
 
 	/* put anything that requires the .conf being read in
 	   acct_gather_energy_p_conf_parse
@@ -356,13 +358,22 @@ extern int fini(void)
  * copy is destroyed, freeing the array. */
 void _copy_energy(acct_gather_energy_t *energy)
 {
+	/*error("Copy energy");int i;
+	if (local_energy->gpu_watts) {
+		for (i = 0; i < num_gpus; i++) {
+			error("GPU%d: %dW", i, local_energy->gpu_watts[i]);
+		}
+	}
+	else {
+		error("gpu_watts not allocated!");
+	}
 	if (energy && energy->gpu_watts) {
 		xfree(energy->gpu_watts);
-	}
+	}*/
 
 	memcpy(energy, local_energy, sizeof(acct_gather_energy_t));
 
-	if (num_gpus && local_energy->gpu_watts) {
+	/*if (num_gpus && local_energy->gpu_watts) {
 		energy->gpu_watts = xmalloc(num_gpus * sizeof(uint64_t));
 		if (!energy->gpu_watts) {
 			return;
@@ -370,7 +381,7 @@ void _copy_energy(acct_gather_energy_t *energy)
 
 		memcpy(energy->gpu_watts, local_energy->gpu_watts,
 				num_gpus * sizeof(uint64_t));
-	}
+	}*/
 }
 
 extern int acct_gather_energy_p_get_data(enum acct_energy_type data_type,

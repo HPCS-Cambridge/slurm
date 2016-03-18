@@ -52,7 +52,7 @@
 ** Define slurm-specific aliases for use by plugins, see slurm_xlator.h
 ** for details.
  */
-strong_alias(acct_gather_energy_destroy, slurm_acct_gather_energy_destroy);
+//strong_alias(acct_gather_energy_destroy, slurm_acct_gather_energy_destroy);
 
 typedef struct slurm_acct_gather_energy_ops {
 	int (*update_node_energy) (void);
@@ -160,22 +160,26 @@ extern acct_gather_energy_t *acct_gather_energy_alloc(uint16_t cnt)
 	acct_gather_energy_t *energy =
 		xmalloc(sizeof(struct acct_gather_energy) * cnt);
 
-	/* TODO verify: xmallox should zero-fill allocations, but let's be certain
-	 * before removing the following statement. */
-	for (i = 0; i < cnt; i++) {
-		energy[i].gpu_watts = NULL;
-	}
+	///* TODO verify: xmallox should zero-fill allocations, but let's be certain
+	// * before removing the following statement. */
+	//for (i = 0; i < cnt; i++) {
+	//	energy[i].gpu_watts = NULL;
+	//}
 
 	return energy;
 }
 
-extern void acct_gather_energy_destroy(acct_gather_energy_t *energy)
+extern void acct_gather_energy_destroy(acct_gather_energy_t *energy)//, char *callfunc)
 {
-	if (energy->gpu_watts) {
-		xfree(energy->gpu_watts);
-	}
+	//if (energy->gpu_watts) {
+	//	//error("Caller <%s> freeing %d", callfunc, energy->gpu_watts);
+	//	xfree(energy->gpu_watts);
+	//}
 	xfree(energy);
 }
+
+//#define acct_gather_energy_destroy(x) _acct_gather_energy_destroy((x), __func__)
+
 
 extern void acct_gather_energy_pack(acct_gather_energy_t *energy, Buf buffer,
 				    uint16_t protocol_version)
@@ -198,13 +202,20 @@ extern void acct_gather_energy_pack(acct_gather_energy_t *energy, Buf buffer,
 		pack32(energy->current_watts, buffer);
 		pack64(energy->previous_consumed_energy, buffer);
 		/* GPUs */
-		if (energy->num_gpus && energy->gpu_watts) {
+		//error("packing: energy->num_gpus: %d", energy->num_gpus);
+		//error("packing: energy->gpu_watts: %d", energy->gpu_watts);int i;
+		//if (energy->num_gpus) {// && energy->gpu_watts) {
+			//for(i=0;i<energy->num_gpus;i++)
+			//	error("packing: energy->gpu_watts[%d]: %llu", i, energy->gpu_watts[i]);
 			pack32(energy->num_gpus, buffer);
-			pack64_array(energy->gpu_watts, energy->num_gpus, buffer);
-		}
-		else {
-			pack32(0, buffer);
-		}
+			int i; for(i = 0; i < MAX_GPUS; i++) {
+				pack32(energy->gpu_watts[i], buffer);}
+			//pack32_array(energy->gpu_watts, MAX_GPUS, buffer);
+		//}
+		//else {
+		//	//0 gpus
+		//	pack32(0, buffer);
+		//}
 		/* END GPUs*/
 		pack_time(energy->poll_time, buffer);
 	} else if (protocol_version >= SLURM_MIN_PROTOCOL_VERSION) {
@@ -240,6 +251,8 @@ extern int acct_gather_energy_unpack(acct_gather_energy_t **energy, Buf buffer,
 		energy_ptr = *energy;
 	}
 
+	// TODO check num_gpus before malloc?
+
 	if (protocol_version >= SLURM_15_08_PROTOCOL_VERSION) {
 		safe_unpack64(&energy_ptr->base_consumed_energy, buffer);
 		safe_unpack32(&energy_ptr->base_watts, buffer);
@@ -248,17 +261,24 @@ extern int acct_gather_energy_unpack(acct_gather_energy_t **energy, Buf buffer,
 		safe_unpack64(&energy_ptr->previous_consumed_energy, buffer);
 		safe_unpack32(&energy_ptr->num_gpus, buffer);
 
-		if (!energy_ptr->gpu_watts) {
+		/*if (!energy_ptr->gpu_watts) {
 			energy_ptr->gpu_watts = xmalloc(energy_ptr->num_gpus * sizeof(uint64_t));
 			if(!energy_ptr->gpu_watts) {
 				error("energy_unpack: could not allocate memory");
 				energy_ptr->gpu_watts = 0;
 			}
-		}
+		}*/
 
-		if(energy_ptr->num_gpus) {
-			unpack64_array(&energy_ptr->gpu_watts, &energy_ptr->num_gpus, buffer);
-		}
+		//if(energy_ptr->num_gpus) {
+		int i;for(i = 0; i < MAX_GPUS; i++)
+			unpack32(&energy_ptr->gpu_watts[i], buffer);
+		//}
+		error("unpacking: energy_ptr->num_gpus: %d", energy_ptr->num_gpus);
+		error("unpacking: energy_ptr->gpu_watts: %d", energy_ptr->gpu_watts[0]);
+		//if (energy_ptr->num_gpus && energy_ptr->gpu_watts) {
+		//	for(i = 0; i < energy_ptr->num_gpus; i++)
+		//		error("unpacking: energy_ptr->gpu_watts[%d]: %llu", i, energy_ptr->gpu_watts[i]);
+		//}
 		safe_unpack_time(&energy_ptr->poll_time, buffer);
 	} else if (protocol_version >= SLURM_MIN_PROTOCOL_VERSION) {
 		safe_unpack32(&uint32_tmp, buffer);

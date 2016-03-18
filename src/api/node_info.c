@@ -398,15 +398,15 @@ slurm_sprint_node_table (node_info_t * node_ptr,
 		xstrcat(out, "\n   ");
 
 	/****** GPU Power Draw Line(s)*****/
-	if (node_ptr->energy && node_ptr->energy->gpu_watts) {
+	if (node_ptr->energy) {
 		int i;
 		for(i = 0; i < node_ptr->energy->num_gpus; i++) {
 			if ((i+1)%4 == 0) {
-				snprintf(tmp_line, sizeof(tmp_line), "GPU%dWatts=%"PRIu64"\n   ",
+				snprintf(tmp_line, sizeof(tmp_line), "GPU%dWatts=%"PRIu32"\n   ",
 						i, node_ptr->energy->gpu_watts[i]);
 			}
 			else {
-				snprintf(tmp_line, sizeof(tmp_line), "GPU%dWatts=%"PRIu64" ",
+				snprintf(tmp_line, sizeof(tmp_line), "GPU%dWatts=%"PRIu32" ",
 						i, node_ptr->energy->gpu_watts[i]);
 			}
 			xstrcat(out, tmp_line);
@@ -415,6 +415,8 @@ slurm_sprint_node_table (node_info_t * node_ptr,
 		if (node_ptr->energy->num_gpus % 4) {
 			xstrcat(out, "\n   ");
 		}
+		//snprintf(tmp_line, sizeof(tmp_line), "Num GPUs: %d\n   ", node_ptr->energy->num_gpus);//todo remove
+		//xstrcat(out, tmp_line);
 	}
 
 	/****** external sensors Line ******/
