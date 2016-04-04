@@ -127,7 +127,7 @@ static int dataset_id = -1; /* id of the dataset for profile data */
 static nvmlReturn_t nverr = NVML_SUCCESS;
 static unsigned int num_gpus = 0;
 static nvmlDevice_t *gpus = NULL;
-static int gpu_watts[MAX_GPUS];
+static uint64_t gpu_watts[MAX_GPUS];
 static acct_gather_energy_t *local_energy = NULL;
 
 static bool _run_in_daemon(void)
@@ -147,45 +147,39 @@ static void _get_joules_task(acct_gather_energy_t *energy) // One of our main bu
 {
 	int i;
 	int power, power_sum = 0;
+	int time_diff;
+	time_t prev_poll_time;
 
 	xassert(_run_in_daemon());
 
-	//if (!energy->gpu_watts) {
-	//	energy->gpu_watts = xmalloc(num_gpus * sizeof(uint64_t));
-	//	if (!energy->gpu_watts) {
-	//		error("Could not allocate gpu_watts");
-	//		return;
-	//	}
-	//}
 
 	for (i = 0; i < num_gpus; i++) {
 		NVCHECK(nvmlDeviceGetPowerUsage(gpus[i], &power));
-		//error("[%d] Errval: %d", i, nvmlDeviceGetPowerUsage(gpus[i], &power));
-		//power = rand(); // TODO necessary until Fermi GPU is available.
-		//power = round(power/1000.);
 		power = power/1000;
 		power_sum += power;
 		energy->gpu_watts[i] = (uint64_t)power;
 	}
 
-	//power_sum = round(power_sum/1000.); //TODO  Do we want to round? Floor? Or just keep milliwatts? Or both (round/floor report, milliwatts for further calculations)? This line is the reason we need -lm by the way
+	prev_poll_time = energy->poll_time;
 
-	//error("[GPU]Total power: %dW", power_sum);
-
-	if (energy->consumed_energy) {
-		uint16_t node_freq;
-		energy->consumed_energy =
-			(uint64_t)power_sum - energy->base_consumed_energy;
-		energy->current_watts = (uint32_t)power_sum;
-		node_freq = slurm_get_acct_gather_node_freq();
-		//if (node_freq)	/* Prevent divide by zero */
-			//energy->current_watts /= (float)node_freq;
-	} else {
-		energy->consumed_energy = 1;
-		energy->base_consumed_energy = (uint64_t)power_sum;
+	if (energy->poll_time) {
+		energy->poll_time = time(NULL);
+		time_diff = energy->poll_time - prev_poll_time;
 	}
-	energy->previous_consumed_energy = (uint64_t)power_sum;
-	energy->poll_time = time(NULL);
+	else {
+		energy->poll_time = time(NULL);
+		time_diff = 0;
+	}
+	
+	energy->consumed_energy = energy->previous_consumed_energy + (power_sum * time_diff);
+	energy->current_watts = (uint32_t)power_sum;
+
+	if (energy->base_consumed_energy > (power_sum * time_diff)) {
+		energy->base_consumed_energy = power_sum * time_diff;
+		energy->base_watts = power_sum;
+	}
+
+	energy->previous_consumed_energy = energy->consumed_energy;
 
 	if (debug_flags & DEBUG_FLAG_ENERGY)
 		info("_get_joules_task: current %u Watts, "
@@ -233,11 +227,14 @@ static int _send_profile(void)
 			error("Energy: Could not allocate memory for dataset");
 			return SLURM_ERROR;
 		}
-		for (i = 0; i < num_gpus; i++) {
+		dataset[0].name = "Power";
+		dataset[0].type = PROFILE_FIELD_UINT64;
+		for (i = 1; i < num_gpus; i++) {
 			sprintf(name, "GPU%d", i);
 			dataset[i].name = xstrdup(name);
 			dataset[i].type = PROFILE_FIELD_UINT64;
 		}
+
 		dataset[num_gpus].name = NULL;
 		dataset[num_gpus].type = PROFILE_FIELD_NOT_SET;
 
@@ -245,7 +242,7 @@ static int _send_profile(void)
 		dataset_id = acct_gather_profile_g_create_dataset(
 			"Energy", NO_PARENT, dataset);
 
-		for (i = 0; i < num_gpus; i++) {
+		for (i = 1; i < num_gpus; i++) {
 			xfree(dataset[i].name);
 		}
 		xfree(dataset); // Done with this
@@ -262,9 +259,13 @@ static int _send_profile(void)
 	if (debug_flags & DEBUG_FLAG_PROFILE) {
 		info("PROFILE-Energy: power=%u", local_energy->current_watts);
 	}
+	for(i = 0; i < num_gpus; i++) {
+		gpu_watts[i] = local_energy->gpu_watts[i];
+	}
+		
 
 	return acct_gather_profile_g_add_sample_data(dataset_id,
-	                                             (void *)local_energy->gpu_watts,
+	                                             (void *)gpu_watts,
 						     local_energy->poll_time);
 }
 
