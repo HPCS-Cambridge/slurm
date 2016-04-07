@@ -74,7 +74,7 @@ typedef struct acct_filesystem_data {
 
 extern int acct_gather_filesystem_init(void); /* load the plugin */
 extern int acct_gather_filesystem_fini(void); /* unload the plugin */
-extern int acct_gather_filesystem_startpoll(uint32_t);
+extern int acct_gather_filesystem_startpoll(float);
 extern int acct_gather_filesystem_g_node_update(void);
 /*
  * Define plugin local conf for acct_gather.conf

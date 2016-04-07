@@ -103,7 +103,7 @@ static plugin_context_t *g_context = NULL;
 static pthread_mutex_t g_context_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool init_run = false;
 
-static int freq = 0;
+static float freq = 0.0;
 static bool pgid_plugin = false;
 static List task_list = NULL;
 static uint64_t cont_id = NO_VAL64;
@@ -289,7 +289,7 @@ extern int jobacct_gather_fini(void)
 	return rc;
 }
 
-extern int jobacct_gather_startpoll(uint16_t frequency)
+extern int jobacct_gather_startpoll(float frequency)
 {
 	int retval = SLURM_SUCCESS;
 	pthread_attr_t attr;
@@ -311,7 +311,7 @@ extern int jobacct_gather_startpoll(uint16_t frequency)
 	freq = frequency;
 
 	task_list = list_create(jobacctinfo_destroy);
-	if (frequency == 0) {	/* don't want dynamic monitoring? */
+	if (frequency == 0.0) {	/* don't want dynamic monitoring? */
 		debug2("jobacct_gather dynamic logging disabled");
 		return retval;
 	}

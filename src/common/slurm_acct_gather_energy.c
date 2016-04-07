@@ -81,7 +81,7 @@ static plugin_context_t *g_context = NULL;
 static pthread_mutex_t g_context_lock =	PTHREAD_MUTEX_INITIALIZER;
 static bool init_run = false;
 static bool acct_shutdown = true;
-static int freq = 0;
+static float freq = 0.0;
 
 
 static void *_watch_node(void *arg)
@@ -342,7 +342,7 @@ extern int acct_gather_energy_g_set_data(enum acct_energy_type data_type,
 	return retval;
 }
 
-extern int acct_gather_energy_startpoll(uint32_t frequency)
+extern int acct_gather_energy_startpoll(float frequency)
 {
 	int retval = SLURM_SUCCESS;
 	pthread_attr_t attr;
@@ -362,7 +362,7 @@ extern int acct_gather_energy_startpoll(uint32_t frequency)
 
 	freq = frequency;
 
-	if (frequency == 0) {   /* don't want dynamic monitoring? */
+	if (frequency == 0.0) {   /* don't want dynamic monitoring? */
 		debug2("acct_gather_energy dynamic logging disabled");
 		return retval;
 	}
