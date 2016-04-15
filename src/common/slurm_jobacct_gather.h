@@ -118,6 +118,8 @@ struct jobacctinfo {
 	double tot_cpu; /* total cpu time(used to figure out ave later) */
 	uint32_t act_cpufreq; /* actual cpu frequency */
 	acct_gather_energy_t energy;
+	acct_gather_energy_t cpu_energy;
+	acct_gather_energy_t gpu_energy;
 	double last_total_cputime;
 	double this_sampled_cputime;
 	uint32_t current_weighted_freq;

@@ -128,6 +128,8 @@ print_field_t fields[] = {
 	{10, "UserCPU", print_fields_str, PRINT_USERCPU},
 	{10, "WCKey", print_fields_str, PRINT_WCKEY},
 	{10, "WCKeyID", print_fields_uint, PRINT_WCKEYID},
+	{14, "CPUEnergy", print_fields_str, PRINT_CPU_ENERGY},
+	{14, "GPUEnergy", print_fields_str, PRINT_GPU_ENERGY},
 	{0,  NULL, NULL, 0}};
 
 List jobs = NULL;

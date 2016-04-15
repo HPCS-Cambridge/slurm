@@ -705,6 +705,12 @@ extern int jobacctinfo_setinfo(jobacctinfo_t *jobacct,
 	case JOBACCT_DATA_CONSUMED_ENERGY:
 		jobacct->energy.consumed_energy = *uint64;
 		break;
+	case JOBACCT_DATA_CPU_ENERGY:
+		jobacct->cpu_energy.consumed_energy = *uint64;
+		break;
+	case JOBACCT_DATA_GPU_ENERGY:
+		jobacct->gpu_energy.consumed_energy = *uint64;
+		break;
 	case JOBACCT_DATA_MAX_DISK_READ:
 		jobacct->max_disk_read = *dub;
 		break;
@@ -819,6 +825,12 @@ extern int jobacctinfo_getinfo(
 		break;
 	case JOBACCT_DATA_CONSUMED_ENERGY:
 		*uint64 = jobacct->energy.consumed_energy;
+		break;
+	case JOBACCT_DATA_CPU_ENERGY:
+		*uint64 = jobacct->cpu_energy.consumed_energy;
+		break;
+	case JOBACCT_DATA_GPU_ENERGY:
+		*uint64 = jobacct->gpu_energy.consumed_energy;
 		break;
 	case JOBACCT_DATA_MAX_DISK_READ:
 		*dub = jobacct->max_disk_read;
