@@ -66,7 +66,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <unistd.h>
-#include <math.h>//Only for round() right now...
+//#include <math.h>//Only for round() right now...
 
 #include <nvidia/gdk/nvml.h>
 
