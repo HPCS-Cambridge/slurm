@@ -898,7 +898,7 @@ static int _get_gpu_joules(acct_gather_energy_t *gpu_energy)
 		power = power/1000;
 		power_sum += power;
 		gpu_energy->gpu_watts[i] = (uint64_t)power;
-	}error("POWAH %d", power);
+	}
 
 	prev_poll_time = gpu_energy->poll_time;
 
@@ -1143,7 +1143,6 @@ extern int acct_gather_energy_p_get_data(enum acct_energy_type data_type,
 	case ENERGY_DATA_NODE_ENERGY_CPU:
 	case ENERGY_DATA_NODE_ENERGY_GPU:
 		_get_gpu_joules(gpu_energy);
-		error("GPU WATTS WOOT: %u", gpu_energy->consumed_energy);
 		memcpy(energy, gpu_energy, sizeof(acct_gather_energy_t));
 		break;
 	case ENERGY_DATA_LAST_POLL:
