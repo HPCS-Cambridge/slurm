@@ -535,6 +535,14 @@ static List _get_precs(List task_list, bool pgid_plugin, uint64_t cont_id,
 					&jobacct->energy);
 				debug2("getjoules_task energy = %"PRIu64"",
 				       jobacct->energy.consumed_energy);
+				// AT -
+				acct_gather_energy_g_get_data(
+					ENERGY_DATA_NODE_ENERGY_CPU,
+					&jobacct->cpu_energy);
+				acct_gather_energy_g_get_data(
+					ENERGY_DATA_NODE_ENERGY_GPU,
+					&jobacct->gpu_energy);
+				// - AT
 			}
 
 			debug4("no pids in this container %"PRIu64"", cont_id);
@@ -918,6 +926,14 @@ extern void jag_common_poll_data(
 				&jobacct->energy);
 			debug2("getjoules_task energy = %"PRIu64,
 			       jobacct->energy.consumed_energy);
+			// AT -
+			acct_gather_energy_g_get_data(
+				ENERGY_DATA_NODE_ENERGY_CPU,
+				&jobacct->cpu_energy);
+			acct_gather_energy_g_get_data(
+				ENERGY_DATA_NODE_ENERGY_GPU,
+				&jobacct->gpu_energy);
+			// - AT
 			energy_counted = 1;
 		}
 		if (profile &&

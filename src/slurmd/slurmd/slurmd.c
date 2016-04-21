@@ -760,7 +760,13 @@ _fill_registration_msg(slurm_node_registration_status_msg_t *msg)
 
 	if (!msg->energy)
 		msg->energy = acct_gather_energy_alloc(1);
+	if (!msg->cpu_energy)
+		msg->cpu_energy = acct_gather_energy_alloc(1);
+	if (!msg->gpu_energy)
+		msg->gpu_energy = acct_gather_energy_alloc(1);
 	acct_gather_energy_g_get_data(ENERGY_DATA_NODE_ENERGY, msg->energy);
+	acct_gather_energy_g_get_data(ENERGY_DATA_NODE_ENERGY_CPU, msg->cpu_energy);
+	acct_gather_energy_g_get_data(ENERGY_DATA_NODE_ENERGY_GPU, msg->gpu_energy);
 
 	msg->timestamp = time(NULL);
 

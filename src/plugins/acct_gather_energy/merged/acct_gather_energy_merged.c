@@ -730,9 +730,9 @@ static int _gpu_send_profile(void)
 			error("Energy: Could not allocate memory for dataset");
 			return SLURM_ERROR;
 		}
-		dataset[0].name = "Power";
-		dataset[0].type = PROFILE_FIELD_UINT64;
-		for (i = 1; i < num_gpus; i++) {
+		//dataset[0].name = "Power";
+		//dataset[0].type = PROFILE_FIELD_UINT64;
+		for (i = 0; i < num_gpus; i++) {
 			sprintf(name, "GPU%d", i);
 			dataset[i].name = xstrdup(name);
 			dataset[i].type = PROFILE_FIELD_UINT64;
@@ -745,7 +745,7 @@ static int _gpu_send_profile(void)
 		gpu_dataset_id = acct_gather_profile_g_create_dataset(
 			"Energy-GPU", NO_PARENT, dataset);
 
-		for (i = 1; i < num_gpus; i++) {
+		for (i = 0; i < num_gpus; i++) {
 			xfree(dataset[i].name);
 		}
 		xfree(dataset); // Done with this
@@ -880,13 +880,10 @@ static void *_thread_launcher(void *no_data)
 	return NULL;
 }
 
-static int _get_joules_task(uint16_t delta, acct_gather_energy_t *gpu_energy)
+static int _get_gpu_joules(acct_gather_energy_t *gpu_energy)
 {
 	time_t now = time(NULL);
-	static bool first = true;
-	uint64_t adjustment = 0;
 	uint16_t i;
-	acct_gather_energy_t *new, *old;
 
 	/* Begin NVML */
 	int power, power_sum = 0;
@@ -901,16 +898,16 @@ static int _get_joules_task(uint16_t delta, acct_gather_energy_t *gpu_energy)
 		power = power/1000;
 		power_sum += power;
 		gpu_energy->gpu_watts[i] = (uint64_t)power;
-	}
+	}error("POWAH %d", power);
 
 	prev_poll_time = gpu_energy->poll_time;
 
 	if (gpu_energy->poll_time) {
-		gpu_energy->poll_time = time(NULL);
+		gpu_energy->poll_time = now;
 		time_diff = gpu_energy->poll_time - prev_poll_time;
 	}
 	else {
-		gpu_energy->poll_time = time(NULL);
+		gpu_energy->poll_time = now;
 		time_diff = 0;
 	}
 	
@@ -924,6 +921,17 @@ static int _get_joules_task(uint16_t delta, acct_gather_energy_t *gpu_energy)
 
 	gpu_energy->previous_consumed_energy = gpu_energy->consumed_energy;
 	/*  End  NVML */
+
+	return SLURM_SUCCESS;
+}
+
+static int _get_joules_task(uint16_t delta, acct_gather_energy_t *gpu_energy)
+{
+	time_t now = time(NULL);
+	static bool first = true;
+	uint64_t adjustment = 0;
+	uint16_t i;
+	acct_gather_energy_t *new, *old;
 
 	/* sensors list */
 	acct_gather_energy_t *energies;
@@ -1131,6 +1139,12 @@ extern int acct_gather_energy_p_get_data(enum acct_energy_type data_type,
 		slurm_mutex_lock(&ipmi_mutex);
 		_get_node_energy(energy);
 		slurm_mutex_unlock(&ipmi_mutex);
+		break;
+	case ENERGY_DATA_NODE_ENERGY_CPU:
+	case ENERGY_DATA_NODE_ENERGY_GPU:
+		_get_gpu_joules(gpu_energy);
+		error("GPU WATTS WOOT: %u", gpu_energy->consumed_energy);
+		memcpy(energy, gpu_energy, sizeof(acct_gather_energy_t));
 		break;
 	case ENERGY_DATA_LAST_POLL:
 		slurm_mutex_lock(&ipmi_mutex);

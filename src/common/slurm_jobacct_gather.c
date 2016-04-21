@@ -606,6 +606,8 @@ extern jobacctinfo_t *jobacctinfo_create(jobacct_id_t *jobacct_id)
 	jobacct->tot_cpu = 0;
 	jobacct->act_cpufreq = 0;
 	memset(&jobacct->energy, 0, sizeof(acct_gather_energy_t));
+	memset(&jobacct->cpu_energy, 0, sizeof(acct_gather_energy_t));
+	memset(&jobacct->gpu_energy, 0, sizeof(acct_gather_energy_t));
 	jobacct->max_disk_read = 0;
 	memcpy(&jobacct->max_disk_read_id, jobacct_id, sizeof(jobacct_id_t));
 	jobacct->tot_disk_read = 0;
@@ -887,6 +889,8 @@ extern void jobacctinfo_pack(jobacctinfo_t *jobacct,
 		packdouble(jobacct->tot_cpu, buffer);
 		pack32((uint32_t)jobacct->act_cpufreq, buffer);
 		pack64((uint64_t)jobacct->energy.consumed_energy, buffer);
+		pack64((uint64_t)jobacct->cpu_energy.consumed_energy, buffer);
+		pack64((uint64_t)jobacct->gpu_energy.consumed_energy, buffer);
 
 		packdouble((double)jobacct->max_disk_read, buffer);
 		packdouble((double)jobacct->tot_disk_read, buffer);
@@ -975,6 +979,8 @@ extern int jobacctinfo_unpack(jobacctinfo_t **jobacct,
 		safe_unpackdouble(&(*jobacct)->tot_cpu, buffer);
 		safe_unpack32(&(*jobacct)->act_cpufreq, buffer);
 		safe_unpack64(&(*jobacct)->energy.consumed_energy, buffer);
+		safe_unpack64(&(*jobacct)->cpu_energy.consumed_energy, buffer);
+		safe_unpack64(&(*jobacct)->gpu_energy.consumed_energy, buffer);
 
 		safe_unpackdouble(&(*jobacct)->max_disk_read, buffer);
 		safe_unpackdouble(&(*jobacct)->tot_disk_read, buffer);
@@ -1134,6 +1140,20 @@ extern void jobacctinfo_aggregate(jobacctinfo_t *dest, jobacctinfo_t *from)
 			dest->energy.consumed_energy +=
 					from->energy.consumed_energy;
 	}
+	if (dest->cpu_energy.consumed_energy != NO_VAL) {
+		if (from->cpu_energy.consumed_energy == NO_VAL)
+			dest->cpu_energy.consumed_energy = NO_VAL;
+		else
+			dest->cpu_energy.consumed_energy +=
+					from->cpu_energy.consumed_energy;
+	}
+	if (dest->gpu_energy.consumed_energy != NO_VAL) {
+		if (from->gpu_energy.consumed_energy == NO_VAL)
+			dest->gpu_energy.consumed_energy = NO_VAL;
+		else
+			dest->gpu_energy.consumed_energy +=
+					from->gpu_energy.consumed_energy;
+	}
 
 	if (dest->max_disk_read < from->max_disk_read) {
 		dest->max_disk_read = from->max_disk_read;
@@ -1175,6 +1195,16 @@ extern void jobacctinfo_2_stats(slurmdb_stats_t *stats, jobacctinfo_t *jobacct)
 	else
 		stats->consumed_energy =
 			(double)jobacct->energy.consumed_energy;
+	if (jobacct->cpu_energy.consumed_energy == NO_VAL)
+		stats->cpu_energy = NO_VAL64;
+	else
+		stats->cpu_energy =
+			(double)jobacct->cpu_energy.consumed_energy;
+	if (jobacct->gpu_energy.consumed_energy == NO_VAL)
+		stats->gpu_energy = NO_VAL64;
+	else
+		stats->gpu_energy =
+			(double)jobacct->gpu_energy.consumed_energy;
 	stats->disk_read_max = jobacct->max_disk_read;
 	stats->disk_read_max_nodeid = jobacct->max_disk_read_id.nodeid;
 	stats->disk_read_max_taskid = jobacct->max_disk_read_id.taskid;

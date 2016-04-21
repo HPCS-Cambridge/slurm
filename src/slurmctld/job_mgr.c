@@ -11867,6 +11867,12 @@ validate_jobs_on_node(slurm_node_registration_status_msg_t *reg_msg)
 	if (reg_msg->energy)
 		memcpy(node_ptr->energy, reg_msg->energy,
 		       sizeof(acct_gather_energy_t));
+	if (reg_msg->cpu_energy)
+		memcpy(node_ptr->cpu_energy, reg_msg->cpu_energy,
+		       sizeof(acct_gather_energy_t));
+	if (reg_msg->gpu_energy)
+		memcpy(node_ptr->gpu_energy, reg_msg->gpu_energy,
+		       sizeof(acct_gather_energy_t));
 
 	if (node_ptr->up_time > reg_msg->up_time) {
 		verbose("Node %s rebooted %u secs ago",

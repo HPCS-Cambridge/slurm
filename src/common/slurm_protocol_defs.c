@@ -715,6 +715,8 @@ extern void slurm_free_acct_gather_node_resp_msg(
 	if (msg) {
 		xfree(msg->node_name);
 		acct_gather_energy_destroy(msg->energy);
+		acct_gather_energy_destroy(msg->cpu_energy);
+		acct_gather_energy_destroy(msg->gpu_energy);
 		xfree(msg);
 	}
 }
@@ -735,6 +737,10 @@ extern void slurm_free_node_registration_status_msg(
 		xfree(msg->cpu_spec_list);
 		if (msg->energy)
 			acct_gather_energy_destroy(msg->energy);
+		if (msg->cpu_energy)
+			acct_gather_energy_destroy(msg->cpu_energy);
+		if (msg->gpu_energy)
+			acct_gather_energy_destroy(msg->gpu_energy);
 		if (msg->gres_info)
 			free_buf(msg->gres_info);
 		xfree(msg->job_id);
@@ -2968,6 +2974,8 @@ extern void slurm_free_node_info_members(node_info_t * node)
 		xfree(node->arch);
 		xfree(node->cpu_spec_list);
 		acct_gather_energy_destroy(node->energy);
+		acct_gather_energy_destroy(node->cpu_energy);
+		acct_gather_energy_destroy(node->gpu_energy);
 		ext_sensors_destroy(node->ext_sensors);
 		power_mgmt_data_free(node->power);
 		xfree(node->features);

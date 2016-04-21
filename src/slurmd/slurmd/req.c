@@ -2589,8 +2589,14 @@ _rpc_acct_gather_update(slurm_msg_t *msg)
 		acct_msg.node_name = conf->node_name;
 		acct_msg.sensor_cnt = 1;
 		acct_msg.energy = acct_gather_energy_alloc(acct_msg.sensor_cnt);
+		acct_msg.cpu_energy = acct_gather_energy_alloc(1);
+		acct_msg.gpu_energy = acct_gather_energy_alloc(1);
 		acct_gather_energy_g_get_data(
 			ENERGY_DATA_NODE_ENERGY, acct_msg.energy);
+		acct_gather_energy_g_get_data(
+			ENERGY_DATA_NODE_ENERGY_CPU, acct_msg.cpu_energy);
+		acct_gather_energy_g_get_data(
+			ENERGY_DATA_NODE_ENERGY_GPU, acct_msg.gpu_energy);
 
 		slurm_msg_t_copy(&resp_msg, msg);
 		resp_msg.msg_type = RESPONSE_ACCT_GATHER_UPDATE;
@@ -2599,6 +2605,8 @@ _rpc_acct_gather_update(slurm_msg_t *msg)
 		slurm_send_node_msg(msg->conn_fd, &resp_msg);
 
 		acct_gather_energy_destroy(acct_msg.energy);
+		acct_gather_energy_destroy(acct_msg.cpu_energy);
+		acct_gather_energy_destroy(acct_msg.gpu_energy);
 	}
 	return rc;
 }
@@ -2647,8 +2655,12 @@ _rpc_acct_gather_energy(slurm_msg_t *msg)
 		memset(&acct_msg, 0, sizeof(acct_gather_node_resp_msg_t));
 		acct_msg.sensor_cnt = sensor_cnt;
 		acct_msg.energy = acct_gather_energy_alloc(acct_msg.sensor_cnt);
+		acct_msg.cpu_energy = acct_gather_energy_alloc(1);
+		acct_msg.gpu_energy = acct_gather_energy_alloc(1);
 
 		acct_gather_energy_g_get_data(data_type, acct_msg.energy);
+		acct_gather_energy_g_get_data(ENERGY_DATA_NODE_ENERGY_CPU, acct_msg.cpu_energy);
+		acct_gather_energy_g_get_data(ENERGY_DATA_NODE_ENERGY_GPU, acct_msg.gpu_energy);
 
 		slurm_msg_t_copy(&resp_msg, msg);
 		resp_msg.msg_type = RESPONSE_ACCT_GATHER_ENERGY;
@@ -2657,6 +2669,8 @@ _rpc_acct_gather_energy(slurm_msg_t *msg)
 		slurm_send_node_msg(msg->conn_fd, &resp_msg);
 
 		acct_gather_energy_destroy(acct_msg.energy);
+		acct_gather_energy_destroy(acct_msg.cpu_energy);
+		acct_gather_energy_destroy(acct_msg.gpu_energy);
 	}
 	return rc;
 }

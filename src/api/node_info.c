@@ -398,21 +398,21 @@ slurm_sprint_node_table (node_info_t * node_ptr,
 		xstrcat(out, "\n   ");
 
 	/****** GPU Power Draw Line(s)*****/
-	if (node_ptr->energy) {
+	if (node_ptr->gpu_energy) {
 		int i;
-		for(i = 0; i < node_ptr->energy->num_gpus; i++) {
+		for(i = 0; i < node_ptr->gpu_energy->num_gpus; i++) {
 			if ((i+1)%4 == 0) {
 				snprintf(tmp_line, sizeof(tmp_line), "GPU%dWatts=%"PRIu32"\n   ",
-						i, node_ptr->energy->gpu_watts[i]);
+						i, node_ptr->gpu_energy->gpu_watts[i]);
 			}
 			else {
 				snprintf(tmp_line, sizeof(tmp_line), "GPU%dWatts=%"PRIu32" ",
-						i, node_ptr->energy->gpu_watts[i]);
+						i, node_ptr->gpu_energy->gpu_watts[i]);
 			}
 			xstrcat(out, tmp_line);
 		}
 
-		if (node_ptr->energy->num_gpus % 4) {
+		if (node_ptr->gpu_energy->num_gpus % 4) {
 			xstrcat(out, "\n   ");
 		}
 		//snprintf(tmp_line, sizeof(tmp_line), "Num GPUs: %d\n   ", node_ptr->energy->num_gpus);//todo remove

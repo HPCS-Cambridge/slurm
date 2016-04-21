@@ -1254,6 +1254,8 @@ static void *_wait_extern_pid(void *args)
 	jobacct = jobacct_gather_remove_task(pid);
 	if (jobacct) {
 		job->jobacct->energy.consumed_energy = 0;
+		job->jobacct->cpu_energy.consumed_energy = 0;
+		job->jobacct->gpu_energy.consumed_energy = 0;
 		jobacctinfo_aggregate(job->jobacct, jobacct);
 		jobacctinfo_destroy(jobacct);
 	}

@@ -806,6 +806,8 @@ extern struct node_record *create_node_record (
 	node_ptr->tmp_disk = config_ptr->tmp_disk;
 	node_ptr->select_nodeinfo = select_g_select_nodeinfo_alloc();
 	node_ptr->energy = acct_gather_energy_alloc(1);
+	node_ptr->cpu_energy = acct_gather_energy_alloc(1);
+	node_ptr->gpu_energy = acct_gather_energy_alloc(1);
 	node_ptr->ext_sensors = ext_sensors_alloc();
 	node_ptr->owner = NO_VAL;
 	xassert (node_ptr->magic = NODE_MAGIC)  /* set value */;
@@ -1069,6 +1071,8 @@ extern void purge_node_rec (struct node_record *node_ptr)
 	xfree(node_ptr->reason);
 	xfree(node_ptr->version);
 	acct_gather_energy_destroy(node_ptr->energy);
+	acct_gather_energy_destroy(node_ptr->cpu_energy);
+	acct_gather_energy_destroy(node_ptr->gpu_energy);
 	ext_sensors_destroy(node_ptr->ext_sensors);
 	select_g_select_nodeinfo_free(node_ptr->select_nodeinfo);
 	xfree(node_ptr->tres_str);
