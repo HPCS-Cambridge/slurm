@@ -1235,7 +1235,7 @@ static int _get_gpu_joules(acct_gather_energy_t *gpu_energy)
 	return SLURM_SUCCESS;
 }
 
-static int _get_joules_task(uint16_t delta, acct_gather_energy_t *gpu_energy)
+static int _get_joules_task(uint16_t delta)
 {
 	time_t now = time(NULL);
 	static bool first = true;
@@ -1454,7 +1454,7 @@ extern int acct_gather_energy_p_get_data(enum acct_energy_type data_type,
 			if (_thread_init() == SLURM_SUCCESS)
 				_thread_update_node_energy();
 		} else {
-			_get_joules_task(10, gpu_energy);
+			_get_joules_task(10);
 		}
 		_get_node_energy(energy);
 		slurm_mutex_unlock(&ipmi_mutex);
@@ -1493,7 +1493,7 @@ extern int acct_gather_energy_p_get_data(enum acct_energy_type data_type,
 			if (_thread_init() == SLURM_SUCCESS)
 				_thread_update_node_energy();
 		} else {
-			_get_joules_task(10, gpu_energy);
+			_get_joules_task(10);
 		}
 		for (i = 0; i < sensors_len; ++i)
 			memcpy(&energy[i], &sensors[i].energy,
@@ -1523,10 +1523,15 @@ extern int acct_gather_energy_p_set_data(enum acct_energy_type data_type,
 		break;
 	case ENERGY_DATA_PROFILE:
 		slurm_mutex_lock(&ipmi_mutex);
-		_get_joules_task(*delta, gpu_energy);
+
+		_get_joules_task(*delta);
+		_get_cpu_joules(cpu_energy);
+		_get_gpu_joules(gpu_energy);
+
 		_ipmi_send_profile();
 		_cpu_send_profile();
 		_gpu_send_profile();
+
 		slurm_mutex_unlock(&ipmi_mutex);
 		break;
 	default:
@@ -1815,7 +1820,7 @@ extern void acct_gather_energy_p_conf_set(s_p_hashtbl_t *tbl)
 			if (debug_flags & DEBUG_FLAG_ENERGY)
 				info("%s thread launched", plugin_name);
 		} else
-			_get_joules_task(0, gpu_energy);
+			_get_joules_task(0);
 	}
 
 	/* BEGIN yanked_from_rapl */
