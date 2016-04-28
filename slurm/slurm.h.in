@@ -687,6 +687,8 @@ enum jobacct_data_type {
 	JOBACCT_DATA_TOT_CPU,	/* data-> double psize */
 	JOBACCT_DATA_ACT_CPUFREQ, /* data-> uint32_t psize hb*/
 	JOBACCT_DATA_CONSUMED_ENERGY, /* data-> uint64_t psize hb*/
+	JOBACCT_DATA_CPU_ENERGY, /* data-> uint64_t psize hb*/
+	JOBACCT_DATA_GPU_ENERGY, /* data-> uint64_t psize hb*/
 	JOBACCT_DATA_MAX_DISK_READ, /* data->double psize */
 	JOBACCT_DATA_MAX_DISK_READ_ID, /* data->jobacct_id_t psize */
 	JOBACCT_DATA_TOT_DISK_READ, /* data->double psize */
@@ -704,6 +706,8 @@ enum acct_energy_type {
 	ENERGY_DATA_SENSOR_CNT,
 	ENERGY_DATA_NODE_ENERGY,
 	ENERGY_DATA_NODE_ENERGY_UP,
+	ENERGY_DATA_NODE_ENERGY_CPU,
+	ENERGY_DATA_NODE_ENERGY_GPU,
 };
 
 /*
@@ -1971,6 +1975,8 @@ typedef struct node_info {
 				 * the node */
 	char *cpu_spec_list;	/* node's specialized cpus */
 	acct_gather_energy_t *energy;	 /* energy data */
+	acct_gather_energy_t *cpu_energy;	 /* energy data */
+	acct_gather_energy_t *gpu_energy;	 /* energy data */
 	ext_sensors_data_t *ext_sensors; /* external sensor data */
 	power_mgmt_data_t *power;        /* power management data */
 	char *features;		/* list of a node's features */
@@ -2088,6 +2094,8 @@ typedef struct powercap_info_msg update_powercap_msg_t;
 
 typedef struct acct_gather_node_resp_msg {
 	acct_gather_energy_t *energy;
+	acct_gather_energy_t *cpu_energy;
+	acct_gather_energy_t *gpu_energy;
 	char *node_name;	  /* node name */
 	uint16_t sensor_cnt;
 } acct_gather_node_resp_msg_t;
