@@ -1247,7 +1247,7 @@ static int _get_joules_task(uint16_t delta)
 	acct_gather_energy_t *energies;
 	uint16_t sensor_cnt;
 
-	if (slurm_get_node_energy(NULL, delta, &sensor_cnt, &energies)) {
+	if (slurm_get_node_energy(NULL, delta, &sensor_cnt, &energies, &cpu_energy, &gpu_energy)) {
 		error("_get_joules_task: can't get info from slurmd");
 		return SLURM_ERROR;
 	}

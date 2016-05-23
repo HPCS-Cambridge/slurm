@@ -3916,7 +3916,9 @@ extern int slurm_load_node_single PARAMS((node_info_msg_t **resp,
 extern int slurm_get_node_energy PARAMS(
 	(char *host, uint16_t delta,
 	 uint16_t *sensors_cnt,
-	 acct_gather_energy_t **energy));
+	 acct_gather_energy_t **energy,
+	 acct_gather_energy_t **cpu_energy,
+	 acct_gather_energy_t **gpu_energy));
 
 /*
  * slurm_free_node_info_msg - free the node information response message

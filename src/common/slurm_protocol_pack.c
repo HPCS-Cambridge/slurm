@@ -3381,9 +3381,12 @@ _pack_acct_gather_node_resp_msg(acct_gather_node_resp_msg_t *msg,
 	if (protocol_version >= SLURM_15_08_PROTOCOL_VERSION) {
 		packstr(msg->node_name, buffer);
 		pack16(msg->sensor_cnt, buffer);
-		for (i = 0; i < msg->sensor_cnt; i++)
+		for (i = 0; i < msg->sensor_cnt; i++) {
 			acct_gather_energy_pack(&msg->energy[i],
 						buffer, protocol_version);
+		}
+		acct_gather_energy_pack(&msg->cpu_energy[0], buffer, protocol_version);
+		acct_gather_energy_pack(&msg->gpu_energy[0], buffer, protocol_version);
 	} else {
 		acct_gather_energy_t *energy = NULL;
 
@@ -3420,6 +3423,12 @@ _unpack_acct_gather_node_resp_msg(acct_gather_node_resp_msg_t **msg,
 				    &e, buffer, protocol_version, 0)
 			    != SLURM_SUCCESS)
 				goto unpack_error;
+		}
+		if (acct_gather_energy_unpack(&node_data_ptr->cpu_energy, buffer, protocol_version, 0) != SLURM_SUCCESS) {
+			goto unpack_error;
+		}
+		if (acct_gather_energy_unpack(&node_data_ptr->gpu_energy, buffer, protocol_version, 0) != SLURM_SUCCESS) {
+			goto unpack_error;
 		}
 	} else {
 		safe_unpackstr_xmalloc(&node_data_ptr->node_name,

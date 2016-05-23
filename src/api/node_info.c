@@ -415,8 +415,6 @@ slurm_sprint_node_table (node_info_t * node_ptr,
 		if (node_ptr->gpu_energy->num_gpus % 4) {
 			xstrcat(out, "\n   ");
 		}
-		//snprintf(tmp_line, sizeof(tmp_line), "Num GPUs: %d\n   ", node_ptr->energy->num_gpus);//todo remove
-		//xstrcat(out, tmp_line);
 	}
 
 	/****** external sensors Line ******/
@@ -625,7 +623,9 @@ extern int slurm_load_node_single (node_info_msg_t **resp,
  */
 extern int slurm_get_node_energy(char *host, uint16_t delta,
 				 uint16_t *sensor_cnt,
-				 acct_gather_energy_t **energy)
+				 acct_gather_energy_t **energy,
+				 acct_gather_energy_t **cpu_energy,
+				 acct_gather_energy_t **gpu_energy)
 {
 	int rc;
 	slurm_msg_t req_msg;
@@ -684,6 +684,16 @@ extern int slurm_get_node_energy(char *host, uint16_t delta,
 		*energy = ((acct_gather_node_resp_msg_t *)
 			   resp_msg.data)->energy;
 		((acct_gather_node_resp_msg_t *) resp_msg.data)->energy = NULL;
+		if (cpu_energy) {
+			*cpu_energy = ((acct_gather_node_resp_msg_t *)
+				   resp_msg.data)->cpu_energy;
+			((acct_gather_node_resp_msg_t *) resp_msg.data)->cpu_energy = NULL;
+		}
+		if (gpu_energy) {
+			*gpu_energy = ((acct_gather_node_resp_msg_t *)
+				   resp_msg.data)->gpu_energy;
+			((acct_gather_node_resp_msg_t *) resp_msg.data)->gpu_energy = NULL;
+		}
 		slurm_free_acct_gather_node_resp_msg(resp_msg.data);
 		break;
 	case RESPONSE_SLURM_RC:
