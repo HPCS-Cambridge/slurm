@@ -152,31 +152,31 @@ static void _prec_extra(jag_prec_t *prec)
 	 * counts of bytes read and written for physical disk I/Os only.
 	 * These counts do not include disk I/Os satisfied from cache.
 	 */
-	/* int dev_major; */
-	/* uint64_t read_bytes, write_bytes, tot_read, tot_write; */
-	/* char *blkio_bytes, *next_device; */
-	/* size_t blkio_bytes_size; */
-	/* xcgroup_get_param(&task_blkio_cg, "blkio.throttle.io_service_bytes", */
-	/*                   &blkio_bytes, &blkio_bytes_size); */
-	/* next_device = blkio_bytes; */
-	/* tot_read = tot_write = 0; */
-	/* while ((sscanf(next_device, "%d:", &dev_major)) > 0) { */
-	/* 	if ((dev_major > 239) && (dev_major < 255)) */
-	/* 		/\* skip experimental device codes *\/ */
-	/* 		continue; */
-	/* 	next_device = strstr(next_device, "Read"); */
-	/* 	sscanf(next_device, "%*s %"PRIu64"", &read_bytes); */
-	/* 	next_device = strstr(next_device, "Write"); */
-	/* 	sscanf(next_device, "%*s %"PRIu64"", &write_bytes); */
-	/* 	tot_read+=read_bytes; */
-	/* 	tot_write+=write_bytes; */
-	/* 	next_device = strstr(next_device, "Total"); */
-	/* } */
-	/* prec->disk_read = (double)tot_read / (double)1048576; */
-	/* prec->disk_write = (double)tot_write / (double)1048576; */
+	 int dev_major;
+	 uint64_t read_bytes, write_bytes, tot_read, tot_write;
+	 char *blkio_bytes, *next_device;
+	 size_t blkio_bytes_size;
+	 xcgroup_get_param(&task_blkio_cg, "blkio.throttle.io_service_bytes",
+	                   &blkio_bytes, &blkio_bytes_size);
+	 next_device = blkio_bytes;
+	 tot_read = tot_write = 0;
+	 while ((sscanf(next_device, "%d:", &dev_major)) > 0) {
+		if ((dev_major > 239) && (dev_major < 255))
+			/* skip experimental device codes */
+		continue;
+		next_device = strstr(next_device, "Read");
+		sscanf(next_device, "%*s %"PRIu64"", &read_bytes);
+		next_device = strstr(next_device, "Write");
+		sscanf(next_device, "%*s %"PRIu64"", &write_bytes);
+		tot_read+=read_bytes;
+		tot_write+=write_bytes;
+		next_device = strstr(next_device, "Total");
+	 }
+	 prec->disk_read = (double)tot_read / (double)1048576;
+	 prec->disk_write = (double)tot_write / (double)1048576;
 
-	/* info("after %d %d", total_rss); */
-	/* print_jag_prec(prec); */
+	 info("after %d %d", total_rss);
+	 print_jag_prec(prec);
 	//END_TIMER;
 	//info("took %s", TIME_STR);
 	return;
@@ -238,12 +238,12 @@ extern int init (void)
 		 *
 		 * Enable blkio subsystem.
 		 */
-		/* if (jobacct_gather_cgroup_blkio_init(&slurm_cgroup_conf) */
-		/*     != SLURM_SUCCESS) { */
-		/* 	xcpuinfo_fini(); */
-		/* 	free_slurm_cgroup_conf(&slurm_cgroup_conf); */
-		/* 	return SLURM_ERROR; */
-		/* } */
+		if (jobacct_gather_cgroup_blkio_init(&slurm_cgroup_conf)
+		    != SLURM_SUCCESS) {
+			xcpuinfo_fini();
+			free_slurm_cgroup_conf(&slurm_cgroup_conf);
+			return SLURM_ERROR;
+		}
 	}
 
 	debug("%s loaded", plugin_name);
@@ -255,7 +255,7 @@ extern int fini (void)
 	if (_run_in_daemon()) {
 		jobacct_gather_cgroup_cpuacct_fini(&slurm_cgroup_conf);
 		jobacct_gather_cgroup_memory_fini(&slurm_cgroup_conf);
-		/* jobacct_gather_cgroup_blkio_fini(&slurm_cgroup_conf); */
+		jobacct_gather_cgroup_blkio_fini(&slurm_cgroup_conf);
 		acct_gather_energy_fini();
 
 		/* unload configuration */
@@ -316,9 +316,9 @@ extern int jobacct_gather_p_add_task(pid_t pid, jobacct_id_t *jobacct_id)
 	    SLURM_SUCCESS)
 		return SLURM_ERROR;
 
-	/* if (jobacct_gather_cgroup_blkio_attach_task(pid, jobacct_id) != */
-	/*     SLURM_SUCCESS) */
-	/* 	return SLURM_ERROR; */
+	if (jobacct_gather_cgroup_blkio_attach_task(pid, jobacct_id) !=
+	    SLURM_SUCCESS)
+		return SLURM_ERROR;
 
 	return SLURM_SUCCESS;
 }
