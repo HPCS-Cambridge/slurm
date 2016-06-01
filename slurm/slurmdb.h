@@ -273,6 +273,8 @@ typedef struct {
 	double act_cpufreq;	/* contains actual average cpu frequency */
 	double cpu_ave;
 	double consumed_energy; /* contains energy consumption in joules */
+	double cpu_energy; /* contains energy consumption in joules */
+	double gpu_energy; /* contains energy consumption in joules */
 	uint32_t cpu_min;
 	uint32_t cpu_min_nodeid; /* contains which node number it was on */
 	uint32_t cpu_min_taskid; /* contains which task number it was on */

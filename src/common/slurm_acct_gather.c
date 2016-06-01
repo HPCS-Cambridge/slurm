@@ -46,7 +46,7 @@ bool acct_gather_suspended = false;
 
 static bool inited = 0;
 
-static int _get_int(const char *my_str)
+/*static int _get_int(const char *my_str)
 {
 	char *end = NULL;
 	int value;
@@ -55,9 +55,25 @@ static int _get_int(const char *my_str)
 		return -1;
 	value = strtol(my_str, &end, 10);
 	//info("from %s I get %d and %s: %m", my_str, value, end);
-	/* means no numbers */
+	/ * means no numbers * /
 	if (my_str == end)
 		return -1;
+
+	return value;
+}*/
+
+static float _get_float(const char *my_str)
+{
+	char *end = NULL;
+	float value;
+
+	if (!my_str)
+		return -1.0;
+	value = strtof(my_str, &end);
+	//info("from %s I get %f and %s: %m", my_str, value, end);
+	/* means no numbers */
+	if (my_str == end)
+		return -1.0;
 
 	return value;
 }
@@ -158,35 +174,41 @@ extern List acct_gather_conf_values(void)
 	return acct_list;
 }
 
+/* TODO back to single function */
 extern int acct_gather_parse_freq(int type, char *freq)
 {
-	int freq_int = -1;
+	return (int)acct_gather_parse_freq_f(type, freq);
+}
+
+extern float acct_gather_parse_freq_f(int type, char *freq)
+{
+	float freq_float = -1.0;
 	char *sub_str = NULL;
 
 	if (!freq)
-		return freq_int;
+		return freq_float;
 
 	switch (type) {
 	case PROFILE_ENERGY:
 		if ((sub_str = slurm_strcasestr(freq, "energy=")))
-			freq_int = _get_int(sub_str + 7);
+			freq_float = _get_float(sub_str + 7);
 		break;
 	case PROFILE_TASK:
 		/* backwards compatibility for when the freq was only
 		   for task.
 		*/
-		freq_int = _get_int(freq);
-		if ((freq_int == -1)
+		freq_float = _get_float(freq);
+		if ((freq_float == -1.0)
 		    && (sub_str = slurm_strcasestr(freq, "task=")))
-			freq_int = _get_int(sub_str + 5);
+			freq_float = _get_float(sub_str + 5);
 		break;
 	case PROFILE_FILESYSTEM:
 		if ((sub_str = slurm_strcasestr(freq, "filesystem=")))
-			freq_int = _get_int(sub_str + 11);
+			freq_float = _get_float(sub_str + 11);
 		break;
 	case PROFILE_NETWORK:
 		if ((sub_str = slurm_strcasestr(freq, "network=")))
-			freq_int = _get_int(sub_str + 8);
+			freq_float = _get_float(sub_str + 8);
 		break;
 	default:
 		fatal("Unhandled profile option %d please update "
@@ -194,44 +216,44 @@ extern int acct_gather_parse_freq(int type, char *freq)
 		      "(acct_gather_parse_freq)", type);
 	}
 
-	return freq_int;
+	return freq_float;
 }
 
 extern int acct_gather_check_acct_freq_task(
 	uint32_t job_mem_lim, char *acctg_freq)
 {
-	int task_freq;
+	float task_freq;
 	static uint32_t acct_freq_task = NO_VAL;
 
 	if (acct_freq_task == NO_VAL) {
 		char *acct_freq = slurm_get_jobacct_gather_freq();
-		int i = acct_gather_parse_freq(PROFILE_TASK, acct_freq);
+		float i = acct_gather_parse_freq_f(PROFILE_TASK, acct_freq);
 		xfree(acct_freq);
 
 		/* If the value is -1 lets set the freq to something
 		   really high so we don't check this again.
 		*/
-		if (i == -1)
-			acct_freq_task = (uint16_t)NO_VAL;
+		if (i < 0)
+			acct_freq_task = NO_VAL;
 		else
-			acct_freq_task = i;
+			acct_freq_task = ((int)i)+1; // TODO this right?
 	}
 
 	if (!job_mem_lim || !acct_freq_task)
 		return 0;
 
-	task_freq = acct_gather_parse_freq(PROFILE_TASK, acctg_freq);
+	task_freq = acct_gather_parse_freq_f(PROFILE_TASK, acctg_freq);
 
-	if (task_freq == -1)
+	if (task_freq < 0.0)
 		return 0;
 
-	if (task_freq == 0) {
+	if (task_freq == 0.0) {
 		error("Can't turn accounting frequency off.  "
 		      "We need it to monitor memory usage.");
 		slurm_seterrno(ESLURMD_INVALID_ACCT_FREQ);
 		return 1;
 	} else if (task_freq > acct_freq_task) {
-		error("Can't set frequency to %d, it is higher than %u.  "
+		error("Can't set frequency to %f, it is higher than %u.  "
 		      "We need it to be at least at this level to "
 		      "monitor memory usage.",
 		      task_freq, acct_freq_task);

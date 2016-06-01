@@ -1049,6 +1049,8 @@ static int _spawn_job_container(stepd_step_rec_t *job)
 				    JOBACCT_DATA_RUSAGE, &rusage,
 				    SLURM_PROTOCOL_VERSION);
 		job->jobacct->energy.consumed_energy = 0;
+		job->jobacct->cpu_energy.consumed_energy = 0;
+		job->jobacct->gpu_energy.consumed_energy = 0;
 		jobacctinfo_aggregate(job->jobacct, jobacct);
 		jobacctinfo_destroy(jobacct);
 	}
@@ -1988,6 +1990,10 @@ _wait_for_any_task(stepd_step_rec_t *job, bool waitflag)
 			*/
 			if (jobacct->energy.consumed_energy)
 				job->jobacct->energy.consumed_energy = 0;
+			if (jobacct->cpu_energy.consumed_energy)
+				job->jobacct->cpu_energy.consumed_energy = 0;
+			if (jobacct->gpu_energy.consumed_energy)
+				job->jobacct->gpu_energy.consumed_energy = 0;
 			jobacctinfo_aggregate(job->jobacct, jobacct);
 			jobacctinfo_destroy(jobacct);
 		}

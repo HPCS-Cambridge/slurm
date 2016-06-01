@@ -1015,6 +1015,10 @@ static void _pack_node (struct node_record *dump_node_ptr, Buf buffer,
 		packstr(dump_node_ptr->reason, buffer);
 		acct_gather_energy_pack(dump_node_ptr->energy, buffer,
 					protocol_version);
+		acct_gather_energy_pack(dump_node_ptr->cpu_energy, buffer,
+					protocol_version);
+		acct_gather_energy_pack(dump_node_ptr->gpu_energy, buffer,
+					protocol_version);
 		ext_sensors_data_pack(dump_node_ptr->ext_sensors, buffer,
 				      protocol_version);
 		power_mgmt_data_pack(dump_node_ptr->power, buffer,
@@ -2196,6 +2200,8 @@ extern int update_node_record_acct_gather_data(
 		return ENOENT;
 
 	memcpy(node_ptr->energy, msg->energy, sizeof(acct_gather_energy_t));
+	memcpy(node_ptr->cpu_energy, msg->cpu_energy, sizeof(acct_gather_energy_t));
+	memcpy(node_ptr->gpu_energy, msg->gpu_energy, sizeof(acct_gather_energy_t));
 
 	return SLURM_SUCCESS;
 }
@@ -2647,6 +2653,12 @@ extern int validate_node_specs(slurm_node_registration_status_msg_t *reg_msg,
 	if (reg_msg->energy)
 		memcpy(node_ptr->energy, reg_msg->energy,
 		       sizeof(acct_gather_energy_t));
+	if (reg_msg->cpu_energy)
+		memcpy(node_ptr->cpu_energy, reg_msg->cpu_energy,
+		       sizeof(acct_gather_energy_t));
+	if (reg_msg->gpu_energy)
+		memcpy(node_ptr->gpu_energy, reg_msg->gpu_energy,
+		       sizeof(acct_gather_energy_t));
 
 	node_ptr->last_response = MAX(now, node_ptr->last_response);
 
@@ -3014,6 +3026,12 @@ extern int validate_nodes_via_front_end(
 		}
 		if (reg_msg->energy)
 			memcpy(node_ptr->energy, reg_msg->energy,
+			       sizeof(acct_gather_energy_t));
+		if (reg_msg->cpu_energy)
+			memcpy(node_ptr->cpu_energy, reg_msg->cpu_energy,
+			       sizeof(acct_gather_energy_t));
+		if (reg_msg->gpu_energy)
+			memcpy(node_ptr->gpu_energy, reg_msg->gpu_energy,
 			       sizeof(acct_gather_energy_t));
 
 		if (slurmctld_init_db &&

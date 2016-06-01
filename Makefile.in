@@ -626,8 +626,8 @@ $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 $(am__aclocal_m4_deps):
 
 config.h: stamp-h1
-	@test -f $@ || rm -f stamp-h1
-	@test -f $@ || $(MAKE) $(AM_MAKEFLAGS) stamp-h1
+	@if test ! -f $@; then rm -f stamp-h1; else :; fi
+	@if test ! -f $@; then $(MAKE) $(AM_MAKEFLAGS) stamp-h1; else :; fi
 
 stamp-h1: $(srcdir)/config.h.in $(top_builddir)/config.status
 	@rm -f stamp-h1
@@ -638,8 +638,8 @@ $(srcdir)/config.h.in: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 	touch $@
 
 slurm/slurm.h: slurm/stamp-h2
-	@test -f $@ || rm -f slurm/stamp-h2
-	@test -f $@ || $(MAKE) $(AM_MAKEFLAGS) slurm/stamp-h2
+	@if test ! -f $@; then rm -f slurm/stamp-h2; else :; fi
+	@if test ! -f $@; then $(MAKE) $(AM_MAKEFLAGS) slurm/stamp-h2; else :; fi
 
 slurm/stamp-h2: $(top_srcdir)/slurm/slurm.h.in $(top_builddir)/config.status
 	@rm -f slurm/stamp-h2

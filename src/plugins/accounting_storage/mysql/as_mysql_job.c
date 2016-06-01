@@ -1243,7 +1243,8 @@ extern int as_mysql_step_complete(mysql_conn_t *mysql_conn,
 			   "max_pages_node=%u, ave_pages=%f, "
 			   "min_cpu=%u, min_cpu_task=%u, "
 			   "min_cpu_node=%u, ave_cpu=%f, "
-			   "act_cpufreq=%u, consumed_energy=%"PRIu64"",
+			   "act_cpufreq=%u, consumed_energy=%"PRIu64", "
+			   "cpu_energy=%"PRIu64", gpu_energy=%"PRIu64"",
 			   /* user seconds */
 			   jobacct->user_cpu_sec,
 			   /* user microseconds */
@@ -1285,7 +1286,9 @@ extern int as_mysql_step_complete(mysql_conn_t *mysql_conn,
 			   jobacct->min_cpu_id.nodeid,	/* min cpu node */
 			   ave_cpu,	/* ave cpu */
 			   jobacct->act_cpufreq,
-			   jobacct->energy.consumed_energy);
+			   jobacct->energy.consumed_energy,
+			   jobacct->cpu_energy.consumed_energy,
+			   jobacct->gpu_energy.consumed_energy);
 	}
 
 	xstrfmtcat(query,

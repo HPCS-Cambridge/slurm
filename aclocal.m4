@@ -1091,12 +1091,6 @@ AC_DEFUN([AM_OUTPUT_DEPENDENCY_COMMANDS],
 # This macro actually does too much.  Some checks are only needed if
 # your package does certain things.  But this isn't really a big deal.
 
-dnl Redefine AC_PROG_CC to automatically invoke _AM_PROG_CC_C_O.
-m4_define([AC_PROG_CC],
-m4_defn([AC_PROG_CC])
-[_AM_PROG_CC_C_O
-])
-
 # AM_INIT_AUTOMAKE(PACKAGE, VERSION, [NO-DEFINE])
 # AM_INIT_AUTOMAKE([OPTIONS])
 # -----------------------------------------------
@@ -1257,6 +1251,7 @@ dnl add the conditional right here, as _AC_COMPILER_EXEEXT may be further
 dnl mangled by Autoconf and run in a shell conditional statement.
 m4_define([_AC_COMPILER_EXEEXT],
 m4_defn([_AC_COMPILER_EXEEXT])[m4_provide([_AM_COMPILER_EXEEXT])])
+
 
 # When config.status generates a header, we must update the stamp-h file.
 # This file resides in the same directory as the config header

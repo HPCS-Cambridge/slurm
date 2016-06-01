@@ -76,6 +76,8 @@ static void _pack_slurmdb_stats(slurmdb_stats_t *stats,
 		packdouble(stats->cpu_ave, buffer);
 		packdouble(stats->act_cpufreq, buffer);
 		packdouble(stats->consumed_energy, buffer);
+		packdouble(stats->cpu_energy, buffer);
+		packdouble(stats->gpu_energy, buffer);
 		packdouble(stats->disk_read_max, buffer);
 		packdouble(stats->disk_read_ave, buffer);
 		packdouble(stats->disk_write_max, buffer);
@@ -111,6 +113,8 @@ static int _unpack_slurmdb_stats(slurmdb_stats_t *stats,
 		safe_unpackdouble(&stats->cpu_ave, buffer);
 		safe_unpackdouble(&stats->act_cpufreq, buffer);
 		safe_unpackdouble(&stats->consumed_energy, buffer);
+		safe_unpackdouble(&stats->cpu_energy, buffer);
+		safe_unpackdouble(&stats->gpu_energy, buffer);
 		safe_unpackdouble(&stats->disk_read_max, buffer);
 		safe_unpackdouble(&stats->disk_read_ave, buffer);
 		safe_unpackdouble(&stats->disk_write_max, buffer);

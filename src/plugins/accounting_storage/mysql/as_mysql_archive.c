@@ -133,6 +133,8 @@ typedef struct {
 	char *ave_vsize;
 	char *exit_code;
 	char *consumed_energy;
+	char *cpu_energy;
+	char *gpu_energy;
 	char *job_db_inx;
 	char *kill_requid;
 	char *max_disk_read;
@@ -352,6 +354,8 @@ static char *step_req_inx[] = {
 	"ave_cpu",
 	"act_cpufreq",
 	"consumed_energy",
+	"cpu_energy",
+	"gpu_energy",
 	"req_cpufreq_min",
 	"req_cpufreq",
 	"req_cpufreq_gov",
@@ -404,6 +408,8 @@ enum {
 	STEP_REQ_AVE_CPU,
 	STEP_REQ_ACT_CPUFREQ,
 	STEP_REQ_CONSUMED_ENERGY,
+	STEP_REQ_CPU_ENERGY,
+	STEP_REQ_GPU_ENERGY,
 	STEP_REQ_REQ_CPUFREQ_MIN,
 	STEP_REQ_REQ_CPUFREQ_MAX,
 	STEP_REQ_REQ_CPUFREQ_GOV,
@@ -906,6 +912,8 @@ static void _pack_local_step(local_step_t *object,
 	packstr(object->ave_vsize, buffer);
 	packstr(object->exit_code, buffer);
 	packstr(object->consumed_energy, buffer);
+	packstr(object->cpu_energy, buffer);
+	packstr(object->gpu_energy, buffer);
 	packstr(object->job_db_inx, buffer);
 	packstr(object->kill_requid, buffer);
 	packstr(object->max_disk_read, buffer);
@@ -965,6 +973,8 @@ static int _unpack_local_step(local_step_t *object,
 		unpackstr_ptr(&object->ave_vsize, &tmp32, buffer);
 		unpackstr_ptr(&object->exit_code, &tmp32, buffer);
 		unpackstr_ptr(&object->consumed_energy, &tmp32, buffer);
+		unpackstr_ptr(&object->cpu_energy, &tmp32, buffer);
+		unpackstr_ptr(&object->gpu_energy, &tmp32, buffer);
 		unpackstr_ptr(&object->job_db_inx, &tmp32, buffer);
 		unpackstr_ptr(&object->kill_requid, &tmp32, buffer);
 		unpackstr_ptr(&object->max_disk_read, &tmp32, buffer);
@@ -2014,6 +2024,8 @@ static Buf _pack_archive_steps(MYSQL_RES *result, char *cluster_name,
 		step.ave_cpu = row[STEP_REQ_AVE_CPU];
 		step.act_cpufreq = row[STEP_REQ_ACT_CPUFREQ];
 		step.consumed_energy = row[STEP_REQ_CONSUMED_ENERGY];
+		step.cpu_energy = row[STEP_REQ_CPU_ENERGY];
+		step.gpu_energy = row[STEP_REQ_GPU_ENERGY];
 		step.ave_disk_read = row[STEP_REQ_AVE_DISK_READ];
 		step.ave_disk_write = row[STEP_REQ_AVE_DISK_WRITE];
 		step.ave_pages = row[STEP_REQ_AVE_PAGES];
@@ -2133,6 +2145,8 @@ static char *_load_steps(uint16_t rpc_version, Buf buffer,
 			   object.ave_cpu,
 			   object.act_cpufreq,
 			   object.consumed_energy,
+			   object.cpu_energy,
+			   object.gpu_energy,
 			   object.req_cpufreq_max,
 			   object.max_disk_read,
 			   object.max_disk_read_task,

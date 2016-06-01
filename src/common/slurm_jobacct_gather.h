@@ -118,6 +118,8 @@ struct jobacctinfo {
 	double tot_cpu; /* total cpu time(used to figure out ave later) */
 	uint32_t act_cpufreq; /* actual cpu frequency */
 	acct_gather_energy_t energy;
+	acct_gather_energy_t cpu_energy;
+	acct_gather_energy_t gpu_energy;
 	double last_total_cputime;
 	double this_sampled_cputime;
 	uint32_t current_weighted_freq;
@@ -147,7 +149,7 @@ struct jobacctinfo {
 extern int jobacct_gather_init(void); /* load the plugin */
 extern int jobacct_gather_fini(void); /* unload the plugin */
 
-extern int  jobacct_gather_startpoll(uint16_t frequency);
+extern int  jobacct_gather_startpoll(float frequency);
 extern int  jobacct_gather_endpoll(void);
 extern void jobacct_gather_suspend_poll(void);
 extern void jobacct_gather_resume_poll(void);

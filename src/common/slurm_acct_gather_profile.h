@@ -88,8 +88,8 @@ typedef struct {
 } acct_gather_profile_dataset_t;
 
 typedef struct {
-	int freq;
-	time_t last_notify;
+	float freq;
+	struct timeval last_notify;
 	pthread_cond_t notify;
 	pthread_mutex_t notify_mutex;
 } acct_gather_profile_timer_t;

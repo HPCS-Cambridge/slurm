@@ -65,7 +65,7 @@
 
 /* These 2 should remain the same. */
 #define SLEEP_TIME 1
-#define USLEEP_TIME 1000000
+#define USLEEP_TIME 100000
 
 typedef struct slurm_acct_gather_profile_ops {
 	void (*child_forked)    (void);
@@ -120,15 +120,17 @@ static bool init_run = false;
 static void _set_freq(int type, char *freq, char *freq_def)
 {
 	if ((acct_gather_profile_timer[type].freq =
-	     acct_gather_parse_freq(type, freq)) == -1)
+	     acct_gather_parse_freq_f(type, freq)) < 0)
 		if ((acct_gather_profile_timer[type].freq =
-		     acct_gather_parse_freq(type, freq_def)) == -1)
-			acct_gather_profile_timer[type].freq = 0;
+		     acct_gather_parse_freq_f(type, freq_def)) < 0)
+			acct_gather_profile_timer[type].freq = 0.0;
 }
 
 static void *_timer_thread(void *args)
 {
-	int i, now, diff;
+	int i;
+	struct timeval now, diff;
+	struct timeval incr = {0, 1e5};
 
 #if HAVE_SYS_PRCTL_H
 	if (prctl(PR_SET_NAME, "acctg_prof", NULL, NULL, NULL) < 0) {
@@ -139,12 +141,12 @@ static void *_timer_thread(void *args)
 
 	(void) pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	(void) pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-
+	
 	DEF_TIMERS;
 	while (init_run && acct_gather_profile_running) {
 		slurm_mutex_lock(&g_context_lock);
 		START_TIMER;
-		now = time(NULL);
+		gettimeofday(&now, NULL);
 
 		for (i=0; i<PROFILE_CNT; i++) {
 			if (acct_gather_suspended) {
@@ -152,21 +154,18 @@ static void *_timer_thread(void *args)
 				 * didn't happen */
 				if (!acct_gather_profile_timer[i].freq)
 					continue;
-				if (acct_gather_profile_timer[i].last_notify)
-					acct_gather_profile_timer[i].
-						last_notify += SLEEP_TIME;
+				if (acct_gather_profile_timer[i].last_notify.tv_usec > 0) // TODO improve check
+					timeradd(&now, &incr, &(acct_gather_profile_timer[i].last_notify));
 				else
 					acct_gather_profile_timer[i].
 						last_notify = now;
 				continue;
 			}
 
-			diff = now - acct_gather_profile_timer[i].last_notify;
-			/* info ("%d is %d and %d", i, */
-			/*       acct_gather_profile_timer[i].freq, */
-			/*       diff); */
+			timersub(&now, &(acct_gather_profile_timer[i].last_notify), &diff);
+
 			if (!acct_gather_profile_timer[i].freq
-			    || (diff < acct_gather_profile_timer[i].freq))
+					|| ((diff.tv_sec + (diff.tv_usec/10e5f)) < acct_gather_profile_timer[i].freq))
 				continue;
 			debug2("profile signalling type %s",
 			       acct_gather_profile_type_t_name(i));
@@ -181,6 +180,7 @@ static void *_timer_thread(void *args)
 			acct_gather_profile_timer[i].last_notify = now;
 		}
 		END_TIMER;
+
 		slurm_mutex_unlock(&g_context_lock);
 
 		usleep(USLEEP_TIME - DELTA_TIMER);
@@ -517,7 +517,7 @@ extern void acct_gather_profile_endpoll(void)
 		pthread_cond_signal(&acct_gather_profile_timer[i].notify);
 		slurm_mutex_unlock(&acct_gather_profile_timer[i].notify_mutex);
 		pthread_cond_destroy(&acct_gather_profile_timer[i].notify);
-		acct_gather_profile_timer[i].freq = 0;
+		acct_gather_profile_timer[i].freq = 0.0;
 		switch (i) {
 		case PROFILE_ENERGY:
 			break;

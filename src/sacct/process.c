@@ -95,6 +95,16 @@ void aggregate_stats(slurmdb_stats_t *dest, slurmdb_stats_t *from)
 		dest->consumed_energy = NO_VAL;
 	else
 		dest->consumed_energy += from->consumed_energy;
+	if ((from->cpu_energy == NO_VAL) ||
+	    (dest->cpu_energy == NO_VAL))
+		dest->cpu_energy = NO_VAL;
+	else
+		dest->cpu_energy += from->cpu_energy;
+	if ((from->gpu_energy == NO_VAL) ||
+	    (dest->gpu_energy == NO_VAL))
+		dest->gpu_energy = NO_VAL;
+	else
+		dest->gpu_energy += from->gpu_energy;
 	dest->act_cpufreq += from->act_cpufreq;
 	if (dest->disk_read_max < from->disk_read_max) {
 		dest->disk_read_max = from->disk_read_max;

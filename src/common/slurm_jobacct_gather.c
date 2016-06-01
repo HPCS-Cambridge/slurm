@@ -112,7 +112,7 @@ static pthread_mutex_t g_context_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool init_run = false;
 static pthread_t watch_tasks_thread_id = 0;
 
-static int freq = 0;
+static float freq = 0.0;
 static bool pgid_plugin = false;
 static List task_list = NULL;
 static uint64_t cont_id = NO_VAL64;
@@ -318,7 +318,7 @@ extern int jobacct_gather_fini(void)
 	return rc;
 }
 
-extern int jobacct_gather_startpoll(uint16_t frequency)
+extern int jobacct_gather_startpoll(float frequency)
 {
 	int retval = SLURM_SUCCESS;
 	pthread_attr_t attr;
@@ -339,7 +339,7 @@ extern int jobacct_gather_startpoll(uint16_t frequency)
 	freq = frequency;
 
 	task_list = list_create(jobacctinfo_destroy);
-	if (frequency == 0) {	/* don't want dynamic monitoring? */
+	if (frequency == 0.0) {	/* don't want dynamic monitoring? */
 		debug2("jobacct_gather dynamic logging disabled");
 		return retval;
 	}
@@ -631,6 +631,8 @@ extern jobacctinfo_t *jobacctinfo_create(jobacct_id_t *jobacct_id)
 	jobacct->tot_cpu = 0;
 	jobacct->act_cpufreq = 0;
 	memset(&jobacct->energy, 0, sizeof(acct_gather_energy_t));
+	memset(&jobacct->cpu_energy, 0, sizeof(acct_gather_energy_t));
+	memset(&jobacct->gpu_energy, 0, sizeof(acct_gather_energy_t));
 	jobacct->max_disk_read = 0;
 	memcpy(&jobacct->max_disk_read_id, jobacct_id, sizeof(jobacct_id_t));
 	jobacct->tot_disk_read = 0;
@@ -729,6 +731,12 @@ extern int jobacctinfo_setinfo(jobacctinfo_t *jobacct,
 		break;
 	case JOBACCT_DATA_CONSUMED_ENERGY:
 		jobacct->energy.consumed_energy = *uint64;
+		break;
+	case JOBACCT_DATA_CPU_ENERGY:
+		jobacct->cpu_energy.consumed_energy = *uint64;
+		break;
+	case JOBACCT_DATA_GPU_ENERGY:
+		jobacct->gpu_energy.consumed_energy = *uint64;
 		break;
 	case JOBACCT_DATA_MAX_DISK_READ:
 		jobacct->max_disk_read = *dub;
@@ -845,6 +853,12 @@ extern int jobacctinfo_getinfo(
 	case JOBACCT_DATA_CONSUMED_ENERGY:
 		*uint64 = jobacct->energy.consumed_energy;
 		break;
+	case JOBACCT_DATA_CPU_ENERGY:
+		*uint64 = jobacct->cpu_energy.consumed_energy;
+		break;
+	case JOBACCT_DATA_GPU_ENERGY:
+		*uint64 = jobacct->gpu_energy.consumed_energy;
+		break;
 	case JOBACCT_DATA_MAX_DISK_READ:
 		*dub = jobacct->max_disk_read;
 		break;
@@ -900,6 +914,8 @@ extern void jobacctinfo_pack(jobacctinfo_t *jobacct,
 		packdouble(jobacct->tot_cpu, buffer);
 		pack32((uint32_t)jobacct->act_cpufreq, buffer);
 		pack64((uint64_t)jobacct->energy.consumed_energy, buffer);
+		pack64((uint64_t)jobacct->cpu_energy.consumed_energy, buffer);
+		pack64((uint64_t)jobacct->gpu_energy.consumed_energy, buffer);
 
 		packdouble((double)jobacct->max_disk_read, buffer);
 		packdouble((double)jobacct->tot_disk_read, buffer);
@@ -988,6 +1004,8 @@ extern int jobacctinfo_unpack(jobacctinfo_t **jobacct,
 		safe_unpackdouble(&(*jobacct)->tot_cpu, buffer);
 		safe_unpack32(&(*jobacct)->act_cpufreq, buffer);
 		safe_unpack64(&(*jobacct)->energy.consumed_energy, buffer);
+		safe_unpack64(&(*jobacct)->cpu_energy.consumed_energy, buffer);
+		safe_unpack64(&(*jobacct)->gpu_energy.consumed_energy, buffer);
 
 		safe_unpackdouble(&(*jobacct)->max_disk_read, buffer);
 		safe_unpackdouble(&(*jobacct)->tot_disk_read, buffer);
@@ -1147,6 +1165,20 @@ extern void jobacctinfo_aggregate(jobacctinfo_t *dest, jobacctinfo_t *from)
 			dest->energy.consumed_energy +=
 					from->energy.consumed_energy;
 	}
+	if (dest->cpu_energy.consumed_energy != NO_VAL) {
+		if (from->cpu_energy.consumed_energy == NO_VAL)
+			dest->cpu_energy.consumed_energy = NO_VAL;
+		else
+			dest->cpu_energy.consumed_energy +=
+					from->cpu_energy.consumed_energy;
+	}
+	if (dest->gpu_energy.consumed_energy != NO_VAL) {
+		if (from->gpu_energy.consumed_energy == NO_VAL)
+			dest->gpu_energy.consumed_energy = NO_VAL;
+		else
+			dest->gpu_energy.consumed_energy +=
+					from->gpu_energy.consumed_energy;
+	}
 
 	if (dest->max_disk_read < from->max_disk_read) {
 		dest->max_disk_read = from->max_disk_read;
@@ -1188,6 +1220,16 @@ extern void jobacctinfo_2_stats(slurmdb_stats_t *stats, jobacctinfo_t *jobacct)
 	else
 		stats->consumed_energy =
 			(double)jobacct->energy.consumed_energy;
+	if (jobacct->cpu_energy.consumed_energy == NO_VAL)
+		stats->cpu_energy = NO_VAL64;
+	else
+		stats->cpu_energy =
+			(double)jobacct->cpu_energy.consumed_energy;
+	if (jobacct->gpu_energy.consumed_energy == NO_VAL)
+		stats->gpu_energy = NO_VAL64;
+	else
+		stats->gpu_energy =
+			(double)jobacct->gpu_energy.consumed_energy;
 	stats->disk_read_max = jobacct->max_disk_read;
 	stats->disk_read_max_nodeid = jobacct->max_disk_read_id.nodeid;
 	stats->disk_read_max_taskid = jobacct->max_disk_read_id.taskid;

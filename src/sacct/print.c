@@ -653,6 +653,58 @@ void print_fields(type_t type, void *object)
 					     tmp_dub,
 					     (curr_inx == field_count));
 			break;
+		case PRINT_CPU_ENERGY:
+			if (got_stats) {
+				switch (type) {
+				case JOB:
+					if (!job->track_steps)
+						tmp_dub = step->
+							stats.cpu_energy;
+					break;
+				case JOBSTEP:
+					tmp_dub = step->stats.cpu_energy;
+					break;
+				default:
+					break;
+				}
+			}
+			if (!fuzzy_equal(tmp_dub, NO_VAL))
+				convert_num_unit2((double)tmp_dub, outbuf,
+						  sizeof(outbuf), UNIT_NONE,
+						  params.units, 1000,
+						  params.convert_flags &
+						  (~CONVERT_NUM_UNIT_EXACT));
+
+			field->print_routine(field,
+					     outbuf,
+					     (curr_inx == field_count));
+			break;
+		case PRINT_GPU_ENERGY:
+			if (got_stats) {
+				switch (type) {
+				case JOB:
+					if (!job->track_steps)
+						tmp_dub = step->
+							stats.gpu_energy;
+					break;
+				case JOBSTEP:
+					tmp_dub = step->stats.gpu_energy;
+					break;
+				default:
+					break;
+				}
+			}
+			if (!fuzzy_equal(tmp_dub, NO_VAL))
+				convert_num_unit2((double)tmp_dub, outbuf,
+						  sizeof(outbuf), UNIT_NONE,
+						  params.units, 1000,
+						  params.convert_flags &
+						  (~CONVERT_NUM_UNIT_EXACT));
+
+			field->print_routine(field,
+					     outbuf,
+					     (curr_inx == field_count));
+			break;
 		case PRINT_CPU_TIME:
 			switch(type) {
 			case JOB:

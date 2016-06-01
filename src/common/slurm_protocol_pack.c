@@ -3503,9 +3503,12 @@ _pack_acct_gather_node_resp_msg(acct_gather_node_resp_msg_t *msg,
 	if (protocol_version >= SLURM_15_08_PROTOCOL_VERSION) {
 		packstr(msg->node_name, buffer);
 		pack16(msg->sensor_cnt, buffer);
-		for (i = 0; i < msg->sensor_cnt; i++)
+		for (i = 0; i < msg->sensor_cnt; i++) {
 			acct_gather_energy_pack(&msg->energy[i],
 						buffer, protocol_version);
+		}
+		acct_gather_energy_pack(&msg->cpu_energy[0], buffer, protocol_version);
+		acct_gather_energy_pack(&msg->gpu_energy[0], buffer, protocol_version);
 	} else {
 		acct_gather_energy_t *energy = NULL;
 
@@ -3534,12 +3537,20 @@ _unpack_acct_gather_node_resp_msg(acct_gather_node_resp_msg_t **msg,
 		safe_unpack16(&node_data_ptr->sensor_cnt, buffer);
 		node_data_ptr->energy = xmalloc(sizeof(acct_gather_energy_t)
 						* node_data_ptr->sensor_cnt);
+		node_data_ptr->cpu_energy = xmalloc(sizeof(acct_gather_energy_t)); //These two are important - 
+		node_data_ptr->gpu_energy = xmalloc(sizeof(acct_gather_energy_t)); //- recv buffer slurmd->slurmdbd
 		for (i = 0; i < node_data_ptr->sensor_cnt; ++i) {
 			e = &node_data_ptr->energy[i];
 			if (acct_gather_energy_unpack(
 				    &e, buffer, protocol_version, 0)
 			    != SLURM_SUCCESS)
 				goto unpack_error;
+		}
+		if (acct_gather_energy_unpack(&node_data_ptr->cpu_energy, buffer, protocol_version, 0) != SLURM_SUCCESS) {
+			goto unpack_error;
+		}
+		if (acct_gather_energy_unpack(&node_data_ptr->gpu_energy, buffer, protocol_version, 0) != SLURM_SUCCESS) {
+			goto unpack_error;
 		}
 	} else {
 		safe_unpackstr_xmalloc(&node_data_ptr->node_name,
@@ -3637,6 +3648,8 @@ _pack_node_registration_status_msg(slurm_node_registration_status_msg_t *
 				buffer);
 		}
 		acct_gather_energy_pack(msg->energy, buffer, protocol_version);
+		acct_gather_energy_pack(msg->cpu_energy, buffer, protocol_version);
+		acct_gather_energy_pack(msg->gpu_energy, buffer, protocol_version);
 		packstr(msg->version, buffer);
 	} else if (protocol_version >= SLURM_15_08_PROTOCOL_VERSION) {
 		pack_time(msg->timestamp, buffer);
@@ -3797,6 +3810,14 @@ _unpack_node_registration_status_msg(slurm_node_registration_status_msg_t
 							     gres_info_size);
 		}
 		if (acct_gather_energy_unpack(&node_reg_ptr->energy, buffer,
+					      protocol_version, 1)
+		    != SLURM_SUCCESS)
+			goto unpack_error;
+		if (acct_gather_energy_unpack(&node_reg_ptr->cpu_energy, buffer,
+					      protocol_version, 1)
+		    != SLURM_SUCCESS)
+			goto unpack_error;
+		if (acct_gather_energy_unpack(&node_reg_ptr->gpu_energy, buffer,
 					      protocol_version, 1)
 		    != SLURM_SUCCESS)
 			goto unpack_error;
@@ -4431,6 +4452,14 @@ _unpack_node_info_members(node_info_t * node, Buf buffer,
 		safe_unpackstr_xmalloc(&node->os, &uint32_tmp, buffer);
 		safe_unpackstr_xmalloc(&node->reason, &uint32_tmp, buffer);
 		if (acct_gather_energy_unpack(&node->energy, buffer,
+					      protocol_version, 1)
+		    != SLURM_SUCCESS)
+			goto unpack_error;
+		if (acct_gather_energy_unpack(&node->cpu_energy, buffer,
+					      protocol_version, 1)
+		    != SLURM_SUCCESS)
+			goto unpack_error;
+		if (acct_gather_energy_unpack(&node->gpu_energy, buffer,
 					      protocol_version, 1)
 		    != SLURM_SUCCESS)
 			goto unpack_error;
