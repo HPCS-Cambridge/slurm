@@ -241,6 +241,9 @@ typedef struct srun_options {
 	char *mcs_label;	/* mcs label if mcs plugin in use */
 	time_t deadline; 	/* --deadline                   */
 	uint32_t job_flags;	/* --gres-flags */
+
+	//AT
+	int io_qos;
 } opt_t;
 
 extern opt_t opt;

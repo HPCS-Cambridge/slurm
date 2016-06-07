@@ -871,6 +871,9 @@ job_desc_msg_create_from_opts (void)
 	if (opt.mcs_label)
 		j->mcs_label = opt.mcs_label;
 
+	// AT
+	j->io_qos = opt.io_qos;
+
 	return j;
 }
 

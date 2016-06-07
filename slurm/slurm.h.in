@@ -1521,6 +1521,9 @@ typedef struct job_descriptor {	/* For submit, allocate, and update requests */
 				   DON'T PACK */
 	uint32_t wait4switch;   /* Maximum time to wait for minimum switches */
 	char *wckey;            /* wckey for job */
+
+	//AT
+	int io_qos;		/* IO QoS priority */
 } job_desc_msg_t;
 
 typedef struct job_info {

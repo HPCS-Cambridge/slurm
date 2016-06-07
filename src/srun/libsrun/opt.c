@@ -213,6 +213,7 @@
 #define LONG_OPT_ACCEL_BIND      0x161
 #define LONG_OPT_MCS_LABEL       0x165
 #define LONG_OPT_DEADLINE        0x166
+#define LONG_OPT_IO_QOS          0x167 //AT
 
 extern char **environ;
 
@@ -555,6 +556,9 @@ static void _opt_default(void)
 	opt.priority = 0;
 	opt.power_flags = 0;
 	opt.mcs_label = NULL;
+
+	// AT
+	opt.io_qos = 100;//= 0;
 }
 
 /*---[ env var processing ]-----------------------------------------------*/
@@ -1023,6 +1027,7 @@ static void _set_options(const int argc, char **argv)
 		{"uid",              required_argument, 0, LONG_OPT_UID},
 		{"usage",            no_argument,       0, LONG_OPT_USAGE},
 		{"wckey",            required_argument, 0, LONG_OPT_WCKEY},
+		{"io-qos",           required_argument, 0, LONG_OPT_IO_QOS},
 		{NULL,               0,                 0, 0}
 	};
 	char *opt_string = "+A:B:c:C:d:D:e:Eg:hHi:I::jJ:kK::lL:m:n:N:"
@@ -1769,6 +1774,10 @@ static void _set_options(const int argc, char **argv)
 		case LONG_OPT_COMPRESS:
 			opt.compress = parse_compress_type(optarg);
 			break;
+		case LONG_OPT_IO_QOS: //AT
+			//Reeeaaal quick'n'dirty
+			opt.io_qos = atoi(optarg);
+			break;
 		default:
 			if (spank_process_option (opt_char, optarg) < 0) {
 				exit(error_exit);
@@ -2327,6 +2336,14 @@ static bool _opt_verify(void)
 	}
 	xfree(mpi_type);
 
+	//AT
+	// Max is 10000 on cgroup2
+//	if (opt.io_qos && (opt.io_qos  < 10 || opt.io_qos > 1000)) {
+	if (opt.io_qos  < 10 || opt.io_qos > 1000) {
+		error("IO QoS value should be between 10 and 1000");
+		exit(error_exit);
+	}
+
 	return verified;
 }
 
@@ -2638,6 +2655,7 @@ static void _opt_list(void)
 	if (opt.resv_port_cnt != NO_VAL)
 		info("resv_port_cnt     : %d", opt.resv_port_cnt);
 	info("power             : %s", power_flags_str(opt.power_flags));
+	info("io-qos:           : %d", opt.io_qos);//AT
 	str = print_commandline(opt.argc, opt.argv);
 	info("remote command    : `%s'", str);
 	if (opt.mcs_label)
