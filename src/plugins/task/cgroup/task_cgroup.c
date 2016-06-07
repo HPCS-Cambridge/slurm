@@ -89,6 +89,7 @@ const uint32_t plugin_version   = SLURM_VERSION_NUMBER;
 static bool use_cpuset  = false;
 static bool use_memory  = false;
 static bool use_devices = false;
+static bool use_blkio   = false;
 
 static slurm_cgroup_conf_t slurm_cgroup_conf;
 

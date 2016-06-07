@@ -12,5 +12,6 @@ pkglib_LTLIBRARIES = task_cgroup.la
 task_cgroup_la_SOURCES = 	task_cgroup.h task_cgroup.c \
 				task_cgroup_cpuset.h task_cgroup_cpuset.c \
 				task_cgroup_memory.h task_cgroup_memory.c \
+				task_cgroup_blkio.h task_cgroup_blkio.c \
 				task_cgroup_devices.h task_cgroup_devices.c
 task_cgroup_la_LDFLAGS = $(SO_LDFLAGS) $(PLUGIN_FLAGS)
