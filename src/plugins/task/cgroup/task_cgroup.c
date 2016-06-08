@@ -56,6 +56,7 @@
 #include "task_cgroup.h"
 #include "task_cgroup_cpuset.h"
 #include "task_cgroup_memory.h"
+#include "task_cgroup_blkio.h"
 #include "task_cgroup_devices.h"
 
 /*
@@ -135,6 +136,16 @@ extern int init (void)
 		      plugin_type);
 	}
 
+	if (true) {
+		use_blkio = true;
+		if (task_cgroup_blkio_init(&slurm_cgroup_conf) !=
+		    SLURM_SUCCESS) {
+			free_slurm_cgroup_conf(&slurm_cgroup_conf);
+			return SLURM_ERROR;
+		}
+		debug("%s: now constraining task I/O", plugin_type);
+	}
+
 	debug("%s: loaded", plugin_type);
 	return SLURM_SUCCESS;
 }
@@ -154,6 +165,9 @@ extern int fini (void)
 	}
 	if (use_devices) {
 		task_cgroup_devices_fini(&slurm_cgroup_conf);
+	}
+	if (use_blkio) {
+		task_cgroup_blkio_fini(&slurm_cgroup_conf);
 	}
 
 	/* unload configuration */
@@ -238,6 +252,10 @@ extern int task_p_pre_setuid (stepd_step_rec_t *job)
 		/* here we should create the devices container as we are root */
 	}
 
+	if (use_blkio) {
+		task_cgroup_blkio_create(job);
+	}
+
 	return SLURM_SUCCESS;
 }
 
@@ -261,6 +279,11 @@ extern int task_p_pre_launch_priv (stepd_step_rec_t *job)
 	if (use_devices) {
 		/* attach the task to the devices cgroup */
 		task_cgroup_devices_attach_task(job);
+	}
+
+	if (use_blkio) {
+		/* attach the task to the devices cgroup */
+		task_cgroup_blkio_attach_task(job);
 	}
 
 	return SLURM_SUCCESS;
@@ -367,6 +390,10 @@ extern int task_p_add_pid (pid_t pid)
 
 	if (use_devices) {
 		task_cgroup_devices_add_pid(pid);
+	}
+
+	if (use_blkio) {
+		task_cgroup_blkio_add_pid(pid);
 	}
 
 	return SLURM_SUCCESS;

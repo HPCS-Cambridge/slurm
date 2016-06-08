@@ -245,7 +245,7 @@ extern int task_cgroup_blkio_create(stepd_step_rec_t *job)
 	 * Disable notify_on_release for this blkio cgroup, it will be
 	 * manually removed by the plugin at the end of the step.
 	 */
-	if (blkio_cgroup_initialize (&blkio_ns, &job_cgroup_cg, job_cgroup_path,
+	if (blkio_cgroup_initialize (&blkio_ns, &job_blkio_cg, job_cgroup_path,
 	                      getuid(), getgid(), 0) < 0) {
 		xcgroup_destroy (&user_blkio_cg);
 		goto error;
