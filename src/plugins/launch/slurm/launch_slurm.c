@@ -578,6 +578,9 @@ extern int launch_p_step_launch(
 	launch_params.ntasks_per_core   = job->ntasks_per_core;
 	launch_params.ntasks_per_socket = job->ntasks_per_socket;
 
+	//AT
+	launch_params.io_qos = opt.io_qos;
+
 	if (opt.export_env)
 		launch_params.env = _build_user_env();
 

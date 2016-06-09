@@ -1147,7 +1147,7 @@ _rpc_launch_tasks(slurm_msg_t *msg)
 	uint16_t port;
 	char     host[MAXHOSTNAMELEN];
 	uid_t    req_uid;
-	launch_tasks_request_msg_t *req = msg->data;
+	launch_tasks_request_msg_t *req = msg->data; error("TASK IO_QOS: %"PRIu16"", req->io_qos);
 	bool     super_user = false;
 #ifndef HAVE_FRONT_END
 	bool     first_job_run;

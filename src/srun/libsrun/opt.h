@@ -243,7 +243,7 @@ typedef struct srun_options {
 	uint32_t job_flags;	/* --gres-flags */
 
 	//AT
-	int io_qos;
+	uint16_t io_qos;	/* blkio QoS value */
 } opt_t;
 
 extern opt_t opt;

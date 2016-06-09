@@ -552,6 +552,9 @@ struct job_details {
 					 * 2: --exclusive=user
 					 * 3: --exclusive=mcs */
 	char *work_dir;			/* pathname of working directory */
+
+	//AT
+	uint16_t io_qos;
 };
 
 typedef struct job_array_struct {

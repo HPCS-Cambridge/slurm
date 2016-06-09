@@ -363,6 +363,9 @@ int slurm_step_launch (slurm_step_ctx_t *ctx,
 		launch.resp_port[i] = ctx->launch_state->resp_port[i];
 	}
 
+	//AT
+	launch.io_qos = params->io_qos;
+
 	rc = _launch_tasks(ctx, &launch, params->msg_timeout,
 			   launch.complete_nodelist, 0);
 

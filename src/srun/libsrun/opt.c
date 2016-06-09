@@ -1775,7 +1775,7 @@ static void _set_options(const int argc, char **argv)
 			opt.compress = parse_compress_type(optarg);
 			break;
 		case LONG_OPT_IO_QOS: //AT
-			//Reeeaaal quick'n'dirty
+			//Reeeaaal quick'n'dirty - TODO parse to uint16_t
 			opt.io_qos = atoi(optarg);
 			break;
 		default:

@@ -1113,6 +1113,7 @@ static void _slurm_rpc_allocate_resources(slurm_msg_t * msg)
 							env_sup[i]);
 				}
 			}
+			alloc_msg.io_qos = job_ptr->details->io_qos; //AT
 		} else {
 			alloc_msg.pn_min_memory = 0;
 			alloc_msg.ntasks_per_board = (uint16_t)NO_VAL;
@@ -4748,6 +4749,9 @@ static int _launch_batch_step(job_desc_msg_t *job_desc_msg, uid_t uid,
 		launch_msg_ptr->profile = job_desc_msg->profile;
 	else
 		launch_msg_ptr->profile = job_ptr->profile;
+
+	// AT -- TODO: enable in batch
+	//launch_msg_ptr->io_qos = job_desc_msg->io_qos;
 
 	/* FIXME: for some reason these CPU arrays total all the CPUs
 	 * actually allocated, rather than totaling up to the requested

@@ -426,6 +426,9 @@ stepd_step_rec_create(launch_tasks_request_msg_t *msg, uint16_t protocol_version
 				    &job->resv_id);
 #endif
 
+	// AT
+	job->io_qos = msg->io_qos;
+
 	get_cred_gres(msg->cred, conf->node_name,
 		      &job->job_gres_list, &job->step_gres_list);
 

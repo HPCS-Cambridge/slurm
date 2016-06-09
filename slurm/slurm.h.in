@@ -1523,7 +1523,7 @@ typedef struct job_descriptor {	/* For submit, allocate, and update requests */
 	char *wckey;            /* wckey for job */
 
 	//AT
-	int io_qos;		/* IO QoS priority */
+	uint16_t  io_qos;	/* IO QoS priority */
 } job_desc_msg_t;
 
 typedef struct job_info {
@@ -1872,6 +1872,8 @@ typedef struct {
 	char **spank_job_env;	/* environment variables for job prolog/epilog
 				 * scripts as set by SPANK plugins */
 	uint32_t spank_job_env_size;	/* element count in spank_env */
+	//AT
+	uint16_t io_qos;
 } slurm_step_launch_params_t;
 
 typedef struct {
@@ -2207,6 +2209,8 @@ typedef struct resource_allocation_response_msg {
 						 * use
 						 * slurm_get_select_jobinfo()
 						 * to access contents */
+	// AT
+	uint16_t io_qos;
 } resource_allocation_response_msg_t;
 
 typedef struct job_alloc_info_response_msg {

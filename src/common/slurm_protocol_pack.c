@@ -3989,6 +3989,7 @@ _pack_resource_allocation_response_msg(resource_allocation_response_msg_t *msg,
 		select_g_select_jobinfo_pack(msg->select_jobinfo,
 					     buffer,
 					     protocol_version);
+		pack16(msg->io_qos, buffer);//AT
 
 	} else if (protocol_version >= SLURM_15_08_PROTOCOL_VERSION) {
 		packstr(msg->account, buffer);
@@ -4092,6 +4093,7 @@ _unpack_resource_allocation_response_msg(
 		if (select_g_select_jobinfo_unpack(&tmp_ptr->select_jobinfo,
 						   buffer, protocol_version))
 			goto unpack_error;
+		safe_unpack16(&tmp_ptr->io_qos, buffer);//AT
 
 	} else if (protocol_version >= SLURM_15_08_PROTOCOL_VERSION) {
 		tmp_ptr->ntasks_per_board = (uint16_t)NO_VAL;
@@ -9040,6 +9042,8 @@ _pack_job_desc_msg(job_desc_msg_t * job_desc_ptr, Buf buffer,
 		}
 		pack16(job_desc_ptr->wait_all_nodes, buffer);
 		pack32(job_desc_ptr->bitflags, buffer);
+		//AT
+		pack16(job_desc_ptr->io_qos, buffer);
 	} else if (protocol_version >= SLURM_15_08_PROTOCOL_VERSION) {
 		packstr(job_desc_ptr->clusters, buffer);
 		pack16(job_desc_ptr->contiguous, buffer);
@@ -9533,6 +9537,7 @@ _unpack_job_desc_msg(job_desc_msg_t ** job_desc_buffer_ptr, Buf buffer,
 		job_desc_ptr->ramdiskimage = NULL;
 		safe_unpack16(&job_desc_ptr->wait_all_nodes, buffer);
 		safe_unpack32(&job_desc_ptr->bitflags, buffer);
+		safe_unpack16(&job_desc_ptr->io_qos, buffer); //AT
 	} else if (protocol_version >= SLURM_15_08_PROTOCOL_VERSION) {
 		uint16_t old_nice = 0;
 		job_desc_ptr = xmalloc(sizeof(job_desc_msg_t));
@@ -10299,6 +10304,8 @@ _pack_launch_tasks_request_msg(launch_tasks_request_msg_t * msg, Buf buffer,
 						     buffer,
 						     protocol_version);
 		}
+		// AT
+		pack16(msg->io_qos, buffer);
 	} else if (protocol_version >= SLURM_15_08_PROTOCOL_VERSION) {
 		pack32(msg->job_id, buffer);
 		pack32(msg->job_step_id, buffer);
@@ -10585,6 +10592,8 @@ _unpack_launch_tasks_request_msg(launch_tasks_request_msg_t **
 						       buffer,
 						       protocol_version);
 		}
+		// AT
+		safe_unpack16(&msg->io_qos, buffer);
 	} else if (protocol_version >= SLURM_15_08_PROTOCOL_VERSION) {
 		msg->ntasks_per_board = (uint16_t)NO_VAL;
 		msg->ntasks_per_core = (uint16_t)NO_VAL;

@@ -63,8 +63,6 @@ static xcgroup_t step_blkio_cg;
 
 extern int task_cgroup_blkio_init(slurm_cgroup_conf_t *slurm_cgroup_conf)
 {
-	xcgroup_t blkio_cg;
-
 	user_cgroup_path[0] = '\0';
 	job_cgroup_path[0] = '\0';
 	jobstep_cgroup_path[0] = '\0';
@@ -275,6 +273,12 @@ extern int task_cgroup_blkio_attach_task(stepd_step_rec_t *job)
 {
 	int fstatus = SLURM_ERROR;
 	pid_t pid;
+
+	/* Set IO QoS (right now, all-devices blkio.weight value) */
+	/* len(UINT16_T_MAX) + \0 = 6 chars .*/
+	char io_qos[6];
+	sprintf(io_qos, "%"PRIu16"", job->io_qos);
+	xcgroup_set_param(&step_blkio_cg, "blkio.weight", io_qos);
 
 	/*
 	 * Attach the current task to the step blkio cgroup

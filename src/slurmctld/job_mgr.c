@@ -2280,6 +2280,9 @@ void _dump_job_details(struct job_details *detail_ptr, Buf buffer)
 			     SLURM_PROTOCOL_VERSION);
 	packstr_array(detail_ptr->argv, detail_ptr->argc, buffer);
 	packstr_array(detail_ptr->env_sup, detail_ptr->env_cnt, buffer);
+
+	//AT
+	pack16(detail_ptr->io_qos, buffer);
 }
 
 /* _load_job_details - Unpack a job details information from buffer */
@@ -2307,6 +2310,9 @@ static int _load_job_details(struct job_record *job_ptr, Buf buffer,
 	time_t begin_time, submit_time;
 	int i;
 	multi_core_data_t *mc_ptr;
+
+	//AT
+	uint16_t io_qos;
 
 	/* unpack the job's details from the buffer */
 	if (protocol_version >= SLURM_16_05_PROTOCOL_VERSION) {
@@ -2364,6 +2370,9 @@ static int _load_job_details(struct job_record *job_ptr, Buf buffer,
 			goto unpack_error;
 		safe_unpackstr_array(&argv, &argc, buffer);
 		safe_unpackstr_array(&env_sup, &env_cnt, buffer);
+
+		//AT
+		safe_unpack16(&io_qos, buffer);
 	} else if (protocol_version >= SLURM_15_08_PROTOCOL_VERSION) {
 		uint16_t old_nice = 0;
 		safe_unpack32(&min_cpus, buffer);
@@ -2570,6 +2579,9 @@ static int _load_job_details(struct job_record *job_ptr, Buf buffer,
 	job_ptr->details->work_dir = work_dir;
 	job_ptr->details->ckpt_dir = ckpt_dir;
 	job_ptr->details->restart_dir = restart_dir;
+
+	//AT
+	job_ptr->details->io_qos = io_qos;
 
 	return SLURM_SUCCESS;
 
@@ -3681,6 +3693,9 @@ void dump_job_desc(job_desc_msg_t * job_specs)
 	slurm_make_time_str(&job_specs->deadline, buf, sizeof(buf));
 	debug3("   deadline=%s", buf);
 	debug3("   bitflags=%u", job_specs->bitflags);
+
+	//AT
+	debug3("   io_qos=%"PRIu16"", job_specs->io_qos);
 
 	select_g_select_jobinfo_sprint(job_specs->select_jobinfo,
 				       buf, sizeof(buf), SELECT_PRINT_MIXED);
@@ -7213,6 +7228,9 @@ _copy_job_desc_to_job_record(job_desc_msg_t * job_desc,
 	 * an association rec yet
 	 */
 	detail_ptr->mc_ptr = _set_multi_core_data(job_desc);
+
+	//AT -- confirmed: copies in user-supplies --io-qos value
+	detail_ptr->io_qos = job_desc->io_qos;
 
 	return SLURM_SUCCESS;
 }
@@ -15281,6 +15299,9 @@ _copy_job_record_to_job_desc(struct job_record *job_ptr)
 				    SELECT_JOBDATA_RAMDISK_IMAGE,
 				    &job_desc->ramdiskimage);
 #endif
+
+	//AT
+	job_desc->io_qos = details->io_qos;
 
 	return job_desc;
 }

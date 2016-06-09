@@ -240,6 +240,9 @@ typedef struct {
 	int		non_smp;	/* Set if task IDs are not monotonically
 					 * increasing across all nodes, set only
 					 * native Cray systems */
+
+	//AT
+	uint16_t	io_qos;		/* I/O QOS value */
 } stepd_step_rec_t;
 
 
