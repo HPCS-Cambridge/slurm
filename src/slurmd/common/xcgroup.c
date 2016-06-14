@@ -579,6 +579,22 @@ int xcgroup_add_pids(xcgroup_t* cg, pid_t* pids, int npids)
 	return fstatus;
 }
 
+/* Add pids to a cgroupv2 group. *Should* take care of threads automatically?
+ * // AT
+ */
+int xcgroup_add_pids_v2(xcgroup_t* cg, pid_t* pids, int npids)
+{
+	int fstatus = XCGROUP_ERROR;
+	char *path = xstrdup_printf("%s/%s", cg->path, "cgroup.procs");
+
+	fstatus = _file_write_uint32s(path, (uint32_t*)pids, npids);
+	if (fstatus != XCGROUP_SUCCESS)
+		debug2("%s: unable to add pids to '%s'", __func__, cg->path);
+
+	xfree(path);
+	return fstatus;
+}
+
 /* This call is not intended to be used to get thread pids
  */
 int xcgroup_get_pids(xcgroup_t* cg, pid_t **pids, int *npids)

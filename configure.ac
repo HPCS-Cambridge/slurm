@@ -658,6 +658,7 @@ AC_CONFIG_FILES([Makefile
 		 src/plugins/task/Makefile
 		 src/plugins/task/affinity/Makefile
 		 src/plugins/task/cgroup/Makefile
+		 src/plugins/task/cgroupv2/Makefile
 		 src/plugins/task/cray/Makefile
 		 src/plugins/task/none/Makefile
 		 src/plugins/topology/Makefile
