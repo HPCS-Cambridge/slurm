@@ -66,6 +66,7 @@ extern int jobacct_gather_cgroup_memory_attach_task(
 
 /* FIXME: Enable when kernel support ready. */
 extern xcgroup_t task_blkio_cg;
+extern xcgroup_t step_blkio_cg;
 extern int jobacct_gather_cgroup_blkio_init(
 	slurm_cgroup_conf_t *slurm_cgroup_conf);
 
@@ -76,3 +77,6 @@ extern int jobacct_gather_cgroup_blkio_attach_task(
 	pid_t pid, jobacct_id_t *jobacct_id);
 
 extern char* jobacct_cgroup_create_slurm_cg (xcgroup_ns_t* ns);
+
+//AT
+extern void slurmd_prec();

@@ -795,6 +795,8 @@ extern void print_jag_prec(jag_prec_t *prec)
 	info("act_cpufreq\t%d", prec->act_cpufreq);
 	info("disk read\t%f", prec->disk_read);
 	info("disk_write\t%f", prec->disk_write);
+	info("disk rios\t%d", prec->disk_rios);
+	info("disk_wios\t%d", prec->disk_wios);
 	info("pages\t%d", prec->pages);
 	info("rss  \t%"PRIu64"", prec->rss);
 	info("ssec \t%d", prec->ssec);

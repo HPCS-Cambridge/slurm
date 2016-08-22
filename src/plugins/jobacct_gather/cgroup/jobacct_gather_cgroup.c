@@ -109,42 +109,42 @@ static void _prec_extra(jag_prec_t *prec)
 	//START_TIMER;
 	/* info("before"); */
 	/* print_jag_prec(prec); */
-	xcgroup_get_param(&task_cpuacct_cg, "cpuacct.stat",
-			  &cpu_time, &cpu_time_size);
-	if (cpu_time == NULL) {
-		debug2("%s: failed to collect cpuacct.stat pid %d ppid %d",
-		       __func__, prec->pid, prec->ppid);
-	} else {
-		sscanf(cpu_time, "%*s %lu %*s %lu", &utime, &stime);
-		prec->usec = utime;
-		prec->ssec = stime;
-	}
-
-	xcgroup_get_param(&task_memory_cg, "memory.stat",
-			  &memory_stat, &memory_stat_size);
-	if (memory_stat == NULL) {
-		debug2("%s: failed to collect memory.stat  pid %d ppid %d",
-		       __func__, prec->pid, prec->ppid);
-	} else {
-		/* This number represents the amount of "dirty" private memory
-		   used by the cgroup.  From our experience this is slightly
-		   different than what proc presents, but is probably more
-		   accurate on what the user is actually using.
-		*/
-		ptr = strstr(memory_stat, "total_rss");
-		sscanf(ptr, "total_rss %lu", &total_rss);
-		prec->rss = total_rss / 1024; /* convert from bytes to KB */
-
-		/* total_pgmajfault is what is reported in proc, so we use
-		 * the same thing here. */
-		if ((ptr = strstr(memory_stat, "total_pgmajfault"))) {
-			sscanf(ptr, "total_pgmajfault %lu", &total_pgpgin);
-			prec->pages = total_pgpgin;
-		}
-	}
-
-	xfree(cpu_time);
-	xfree(memory_stat);
+//	xcgroup_get_param(&task_cpuacct_cg, "cpuacct.stat",
+//			  &cpu_time, &cpu_time_size);
+//	if (cpu_time == NULL) {
+//		debug2("%s: failed to collect cpuacct.stat pid %d ppid %d",
+//		       __func__, prec->pid, prec->ppid);
+//	} else {
+//		sscanf(cpu_time, "%*s %lu %*s %lu", &utime, &stime);
+//		prec->usec = utime;
+//		prec->ssec = stime;
+//	}
+//
+//	xcgroup_get_param(&task_memory_cg, "memory.stat",
+//			  &memory_stat, &memory_stat_size);
+//	if (memory_stat == NULL) {
+//		debug2("%s: failed to collect memory.stat  pid %d ppid %d",
+//		       __func__, prec->pid, prec->ppid);
+//	} else {
+//		/* This number represents the amount of "dirty" private memory
+//		   used by the cgroup.  From our experience this is slightly
+//		   different than what proc presents, but is probably more
+//		   accurate on what the user is actually using.
+//		*/
+//		ptr = strstr(memory_stat, "total_rss");
+//		sscanf(ptr, "total_rss %lu", &total_rss);
+//		prec->rss = total_rss / 1024; /* convert from bytes to KB */
+//
+//		/* total_pgmajfault is what is reported in proc, so we use
+//		 * the same thing here. */
+//		if ((ptr = strstr(memory_stat, "total_pgmajfault"))) {
+//			sscanf(ptr, "total_pgmajfault %lu", &total_pgpgin);
+//			prec->pages = total_pgpgin;
+//		}
+//	}
+//
+//	xfree(cpu_time);
+//	xfree(memory_stat);
 
 	/* FIXME: Enable when kernel support ready.
 	 *
@@ -153,35 +153,62 @@ static void _prec_extra(jag_prec_t *prec)
 	 * These counts do not include disk I/Os satisfied from cache.
 	 */
 	 int dev_major;
-	 uint64_t read_bytes, write_bytes, tot_read, tot_write;
+	 uint64_t read_bytes, write_bytes, prev_read, prev_write;
+	 static uint64_t tot_read = 0, tot_write = 0;
+	 int rios, wios, prev_rios, prev_wios;
+	 static int tot_rios = 0, tot_wios = 0;
 	 char *blkio_bytes, *next_device;
 	 size_t blkio_bytes_size;
-	 xcgroup_get_param(&task_blkio_cg, "blkio.throttle.io_service_bytes",
+	 xcgroup_get_param(&step_blkio_cg, "io.stat",
 	                   &blkio_bytes, &blkio_bytes_size);
+	 error("io.stat: %s", blkio_bytes);
+
 	 next_device = blkio_bytes;
-	 tot_read = tot_write = 0;
+	 //tot_read = tot_write = 0;
+	 //tot_rios = tot_wios = 0;
+	 prev_read = tot_read; tot_read = 0;
+	 prev_write = tot_write; tot_write = 0;
+	 prev_rios = tot_rios; tot_rios = 0;
+	 prev_wios = tot_rios; tot_wios = 0;
+	 error("tot_read: %"PRIu64", prev_read: %"PRIu64"", tot_read, prev_read);
 	 while ((sscanf(next_device, "%d:", &dev_major)) > 0) {
 		if ((dev_major > 239) && (dev_major < 255))
 			/* skip experimental device codes */
 		continue;
-		next_device = strstr(next_device, "Read");
-		sscanf(next_device, "%*s %"PRIu64"", &read_bytes);
-		next_device = strstr(next_device, "Write");
-		sscanf(next_device, "%*s %"PRIu64"", &write_bytes);
+		next_device = strstr(next_device, "rbytes=");
+		sscanf(next_device, "rbytes=%"PRIu64"", &read_bytes);
+		next_device = strstr(next_device, "wbytes=");
+		sscanf(next_device, "wbytes=%"PRIu64"", &write_bytes);
+		next_device = strstr(next_device, "rios=");
+		sscanf(next_device, "rios=%d", &rios);
+		next_device = strstr(next_device, "wios=");
+		sscanf(next_device, "wios=%d", &wios);
 		tot_read+=read_bytes;
 		tot_write+=write_bytes;
-		next_device = strstr(next_device, "Total");
+		tot_rios += rios;
+		tot_wios += wios;
+		//next_device = strstr(next_device, "Total");
 	 }
-	 prec->disk_read = (double)tot_read / (double)1048576;
-	 prec->disk_write = (double)tot_write / (double)1048576;
+	 error("tot_read: %"PRIu64", prev_read: %"PRIu64"", tot_read, tot_read - prev_read);
+	 prec->disk_read = (double)(tot_read - prev_read) / (double)1048576;
+	 prec->disk_write = (double)(tot_write - prev_write) / (double)1048576;
+	 prec->disk_rios = tot_rios - prev_rios;
+	 prec->disk_wios = tot_wios - prev_wios;
 
-	 info("after %d %d", total_rss);
+	 //info("after %d %d", total_rss);
 	 print_jag_prec(prec);
 	//END_TIMER;
 	//info("took %s", TIME_STR);
 	return;
 
 }
+
+//extern void slurmd_prec()
+//{
+//	jag_prec_t prec;
+//	return;
+//	_prec_extra(&prec);
+//}
 
 static bool _run_in_daemon(void)
 {
@@ -202,11 +229,13 @@ static bool _run_in_daemon(void)
  */
 extern int init (void)
 {
+
 	/* If running on the slurmctld don't do any of this since it
 	   isn't needed.
 	*/
 	if (_run_in_daemon()) {
 		jag_common_init(0);
+
 
 		/* read cgroup configuration */
 		if (read_slurm_cgroup_conf(&slurm_cgroup_conf))
@@ -218,21 +247,21 @@ extern int init (void)
 			return SLURM_ERROR;
 		}
 
-		/* enable cpuacct cgroup subsystem */
-		if (jobacct_gather_cgroup_cpuacct_init(&slurm_cgroup_conf) !=
-		    SLURM_SUCCESS) {
-			xcpuinfo_fini();
-			free_slurm_cgroup_conf(&slurm_cgroup_conf);
-			return SLURM_ERROR;
-		}
-
-		/* enable memory cgroup subsystem */
-		if (jobacct_gather_cgroup_memory_init(&slurm_cgroup_conf) !=
-		    SLURM_SUCCESS) {
-			xcpuinfo_fini();
-			free_slurm_cgroup_conf(&slurm_cgroup_conf);
-			return SLURM_ERROR;
-		}
+//		/* enable cpuacct cgroup subsystem */
+//		if (jobacct_gather_cgroup_cpuacct_init(&slurm_cgroup_conf) !=
+//		    SLURM_SUCCESS) {
+//			xcpuinfo_fini();
+//			free_slurm_cgroup_conf(&slurm_cgroup_conf);
+//			return SLURM_ERROR;
+//		}
+//
+//		/* enable memory cgroup subsystem */
+//		if (jobacct_gather_cgroup_memory_init(&slurm_cgroup_conf) !=
+//		    SLURM_SUCCESS) {
+//			xcpuinfo_fini();
+//			free_slurm_cgroup_conf(&slurm_cgroup_conf);
+//			return SLURM_ERROR;
+//		}
 
 		/* FIXME: Enable when kernel support ready.
 		 *
@@ -253,8 +282,8 @@ extern int init (void)
 extern int fini (void)
 {
 	if (_run_in_daemon()) {
-		jobacct_gather_cgroup_cpuacct_fini(&slurm_cgroup_conf);
-		jobacct_gather_cgroup_memory_fini(&slurm_cgroup_conf);
+//		jobacct_gather_cgroup_cpuacct_fini(&slurm_cgroup_conf);
+//		jobacct_gather_cgroup_memory_fini(&slurm_cgroup_conf);
 		jobacct_gather_cgroup_blkio_fini(&slurm_cgroup_conf);
 		acct_gather_energy_fini();
 
@@ -308,13 +337,13 @@ extern int jobacct_gather_p_endpoll(void)
 
 extern int jobacct_gather_p_add_task(pid_t pid, jobacct_id_t *jobacct_id)
 {
-	if (jobacct_gather_cgroup_cpuacct_attach_task(pid, jobacct_id) !=
-	    SLURM_SUCCESS)
-		return SLURM_ERROR;
-
-	if (jobacct_gather_cgroup_memory_attach_task(pid, jobacct_id) !=
-	    SLURM_SUCCESS)
-		return SLURM_ERROR;
+//	if (jobacct_gather_cgroup_cpuacct_attach_task(pid, jobacct_id) !=
+//	    SLURM_SUCCESS)
+//		return SLURM_ERROR;
+//
+//	if (jobacct_gather_cgroup_memory_attach_task(pid, jobacct_id) !=
+//	    SLURM_SUCCESS)
+//		return SLURM_ERROR;
 
 	if (jobacct_gather_cgroup_blkio_attach_task(pid, jobacct_id) !=
 	    SLURM_SUCCESS)

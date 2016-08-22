@@ -85,6 +85,8 @@ typedef struct slurm_cgroup_conf {
 	bool      constrain_devices;
 	char *    allowed_devices_file;
 
+	bool      io_quality_of_service; // AT
+
 } slurm_cgroup_conf_t;
 
 /*

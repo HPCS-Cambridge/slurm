@@ -216,6 +216,15 @@ int xcgroup_delete(xcgroup_t* cg);
 int xcgroup_add_pids(xcgroup_t* cg, pid_t* pids, int npids);
 
 /*
+ * add a list of pids to a version 2 cgroup
+ *
+ * returned values:
+ *  - XCGROUP_ERROR
+ *  - XCGROUP_SUCCESS
+ */
+int xcgroup_add_pids_v2(xcgroup_t* cg, pid_t* pids, int npids);
+
+/*
  * extract the pids list of a cgroup
  *
  * pids array must be freed using xfree(...)
@@ -342,4 +351,8 @@ int xcgroup_get_uint64_param(xcgroup_t* cg, char* param, uint64_t* value);
  */
 int xcgroup_move_process(xcgroup_t *cg, pid_t pid);
 
+//AT
+int slurmd_get_file_contents(char *path, char **content, size_t *csize);
 #endif
+
+

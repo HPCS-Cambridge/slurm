@@ -113,6 +113,8 @@
 #include "src/slurmd/slurmd/slurmd_plugstack.h"
 #include "src/slurmd/common/xcpuinfo.h"
 
+//#include "src/plugins/jobacct_gather/cgroup/jobacct_gather_cgroup.h" // AT
+
 #define GETOPT_ARGS	"bcCd:Df:hL:Mn:N:vV"
 
 #ifndef MAXHOSTNAMELEN
@@ -208,6 +210,184 @@ static void      _usage(void);
 static int       _validate_and_convert_cpu_list(void);
 static void      _wait_for_all_threads(int secs);
 static void      _wait_health_check(void);
+
+// AT
+
+size_t slurmd_file_getsize(int fd)
+{
+	int rc;
+	size_t fsize;
+	off_t offset;
+	char c;
+
+	offset = lseek(fd, 0, SEEK_CUR);
+	if(offset < 0)
+		return -1;
+	lseek(fd, 0, SEEK_SET);
+
+	fsize = 0;
+	do{
+		rc = read(fd, (void*)&c, 1);
+		if(rc > 0)
+			fsize ++;
+	} while ((rc < 0 && errno == EINTR) || rc > 0);
+
+	lseek(fd, offset, SEEK_SET);
+
+	if(rc < 0)
+		return -1;
+	return fsize;
+}
+
+int slurmd_get_file_contents(char *file_path, char** content, size_t *csize)
+{
+	int fstatus;
+	int rc;
+	int fd;
+
+	size_t fsize;
+	char *buf;
+
+	fstatus = SLURM_ERROR;
+
+	if(content == NULL || csize == NULL) {
+		return fstatus;
+	}
+
+	fd = open(file_path, O_RDONLY, 0700);
+	if (fd < 0) {
+		return fstatus;
+	}
+
+	fsize = slurmd_file_getsize(fd);
+	if(fsize == -1) {
+		close(fd);
+		return fstatus;
+	}
+
+	buf = (char*) xmalloc((fsize+1)*sizeof(char));
+	buf[fsize] = '\0';
+	do{
+		rc = read(fd, buf, fsize);
+	} while (rc < 0 && errno == EINTR);
+
+	if(rc > 0) {
+		*content = buf;
+		*csize = rc;
+		fstatus = SLURM_SUCCESS;
+	}
+
+	close(fd);
+	return fstatus;
+}
+
+/* Spawn a thread to make sure we send at least one registration message to
+ * slurmctld. If slurmctld restarts, it will request another registration
+ * message. */
+static void *
+_io_monitor(void *arg)
+{
+	int dev_major;
+	uint64_t read_bytes, write_bytes, tot_read, tot_write;
+	int rios, wios, tot_rios, tot_wios;
+	char *blkio_bytes, *next_device;
+	size_t blkio_bytes_size;
+
+
+
+	_increment_thd_count();
+
+	//while (!_shutdown) {
+	//	debug("I'm an IO monitor"); //slurmd_prec();
+	//	slurmd_get_file_contents("/cgroup2/slurm/io.stat", &blkio_bytes, &blkio_bytes_size);
+	//	error("io.stat: %s", blkio_bytes);
+	//	xfree(blkio_bytes);
+	//	sleep(10);
+	//}
+
+	int loopcount = 0, itercount = 5;
+
+	job_step_stat_response_msg_t *resp = NULL;
+	int rc = SLURM_SUCCESS;
+	ListIterator i, itr;
+	List steps;
+	step_loc_t *stepd;
+	job_step_stat_t *status;
+
+	while(!_shutdown) {
+		if(loopcount++ != itercount) {
+			sleep(1);
+			continue;
+		}
+		loopcount = 0;
+		steps = stepd_available(conf->spooldir, conf->node_name);
+		i = list_iterator_create(steps); // TODO sort list?
+		while ((stepd = list_next(i))) {
+			if (stepd->stepid == SLURM_BATCH_SCRIPT || stepd->stepid == SLURM_EXTERN_CONT) {
+			//	error("Skipping %u", stepd->stepid);
+				continue; // ignore 'sbatch' stepd (SLURM_BATCH_SCRIPT), 'extern' (SLURM_EXTERN_CONT)
+			}
+			//error("Not skipping %u", stepd->stepid);
+			//debug("Stepd found: %u", stepd->jobid);
+			rc = slurm_job_step_stat(stepd->jobid,stepd->stepid, conf->hostname, SLURM_PROTOCOL_VERSION, &resp);
+			if (rc == SLURM_SUCCESS) {
+			//	debug("Step info found: %u", resp->step_id);
+			}
+			else {
+				slurm_job_step_pids_response_msg_free(resp);
+				resp = NULL;
+				continue;
+			}
+
+			itr = list_iterator_create(resp->stats_list);
+			while (status = list_next(itr)) {
+				info("[%u:%u] MBytes read in timeframe: %f", stepd->jobid, stepd->stepid, status->jobacct->tot_disk_read);
+			}
+
+			list_iterator_destroy(itr);
+			slurm_job_step_pids_response_msg_free(resp);
+			resp = NULL;
+		}
+		list_iterator_destroy(i);
+		FREE_NULL_LIST(steps);
+		sleep(1);
+	}
+
+	debug("Shutting down IO monitor");
+
+	_decrement_thd_count();
+	return NULL;
+}
+
+static void
+_spawn_io_monitor(void)
+{
+	int            rc;
+	pthread_attr_t attr;
+	pthread_t      id;
+	int            retries = 0;
+
+	slurm_attr_init(&attr);
+	rc = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	if (rc != 0) {
+		errno = rc;
+		fatal("Unable to set detachstate on attr: %m");
+		slurm_attr_destroy(&attr);
+		return;
+	}
+
+	while (pthread_create(&id, &attr, &_io_monitor, NULL)) {
+		error("io_monitor: pthread_create: %m");
+		if (++retries > 3)
+			fatal("io_monitor: pthread_create: %m");
+		usleep(10);	/* sleep and again */
+	}
+	error("spawned io monitor");
+
+	return;
+}
+
+// /AT
 
 int
 main (int argc, char *argv[])
@@ -374,6 +554,9 @@ main (int argc, char *argv[])
 	_wait_health_check();
 
 	_spawn_registration_engine();
+	// AT
+	_spawn_io_monitor();
+	// /AT
 	msg_aggr_sender_init(conf->hostname, conf->port,
 			     conf->msg_aggr_window_time,
 			     conf->msg_aggr_window_msgs);

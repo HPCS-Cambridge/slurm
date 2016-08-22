@@ -63,7 +63,7 @@ static xcgroup_ns_t blkio_ns;
 
 static xcgroup_t user_blkio_cg;
 static xcgroup_t job_blkio_cg;
-static xcgroup_t step_blkio_cg;
+xcgroup_t step_blkio_cg;
 xcgroup_t task_blkio_cg;
 
 
@@ -75,13 +75,25 @@ extern int jobacct_gather_cgroup_blkio_init(
 	job_cgroup_path[0]='\0';
 	jobstep_cgroup_path[0]='\0';
 
+//	blkio_ns.mnt_point = xstrdup_printf("%s", slurm_cgroup_conf->cgroup_mountpoint);
+//	blkio_ns.mnt_args = xstrdup("");
+//	blkio_ns.subsystems = xstrdup("io");
+//
+//	if(!xcgroup_ns_is_available(&blkio_ns)) {
+//		return SLURM_ERROR;
+//	}
+	//return SLURM_SUCCESS;
+	//sprintf(task_cgroup_path, "%s", slurm_cgroup_conf->cgroup_mountpoint);
+
 	/* initialize blkio cgroup namespace */
-	if (xcgroup_ns_create(slurm_cgroup_conf, &blkio_ns, "", "blkio")
+	if (xcgroup_ns_create(slurm_cgroup_conf, &blkio_ns, "", "")
 	    != XCGROUP_SUCCESS) {
 		error("jobacct_gather/cgroup: unable to create blkio "
 		      "namespace");
-		return SLURM_ERROR;
+		//return SLURM_ERROR;
 	}
+	sprintf(task_cgroup_path, "%s", blkio_ns.mnt_point);
+
 	return SLURM_SUCCESS;
 }
 
@@ -109,6 +121,7 @@ extern int jobacct_gather_cgroup_blkio_fini(
 extern int jobacct_gather_cgroup_blkio_attach_task(
 	pid_t pid, jobacct_id_t *jobacct_id)
 {
+	error("PATHMAN: %s", task_cgroup_path);
 	xcgroup_t blkio_cg;
 	stepd_step_rec_t *job;
 	uid_t uid;
@@ -198,18 +211,19 @@ extern int jobacct_gather_cgroup_blkio_attach_task(
 	 * a task. The release_agent will have to lock the root blkio cgroup
 	 * to avoid this scenario.
 	 */
-
+error("beta");
 	if (xcgroup_create(&blkio_ns, &blkio_cg, "", 0, 0)
 	    != XCGROUP_SUCCESS) {
 		error("jobacct_gather/cgroup: unable to create root blkio "
 		      "xcgroup");
 		return SLURM_ERROR;
-	}
+	}error("%s", blkio_cg.path);
 	if (xcgroup_lock(&blkio_cg) != XCGROUP_SUCCESS) {
 		xcgroup_destroy(&blkio_cg);
 		error("jobacct_gather/cgroup: unable to lock root blkio cg");
 		return SLURM_ERROR;
 	}
+	error("alpha");
 
 	/*
 	 * Create user cgroup in the blkio ns (it could already exist)
@@ -268,6 +282,7 @@ extern int jobacct_gather_cgroup_blkio_attach_task(
 		fstatus = SLURM_ERROR;
 		goto error;
 	}
+	error("alpha");
 
 	if (xcgroup_instantiate(&step_blkio_cg) != XCGROUP_SUCCESS) {
 		xcgroup_destroy(&user_blkio_cg);
@@ -316,6 +331,7 @@ extern int jobacct_gather_cgroup_blkio_attach_task(
 	} else
 		fstatus = SLURM_SUCCESS;
 
+	error("alpha");
 error:
 	xcgroup_unlock(&blkio_cg);
 	xcgroup_destroy(&blkio_cg);

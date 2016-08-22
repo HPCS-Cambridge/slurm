@@ -106,7 +106,7 @@ extern int init (void)
 		return SLURM_ERROR;
 
 	/* enable subsystems based on conf */
-	if (slurm_cgroup_conf.constrain_cores) {
+	if (false && slurm_cgroup_conf.constrain_cores) {
 		use_cpuset = true;
 		if (task_cgroup_cpuset_init(&slurm_cgroup_conf) !=
 		    SLURM_SUCCESS) {
@@ -117,7 +117,7 @@ extern int init (void)
 		      plugin_type);
 	}
 
-	if (slurm_cgroup_conf.constrain_ram_space ||
+	if (false && slurm_cgroup_conf.constrain_ram_space ||
 	    slurm_cgroup_conf.constrain_swap_space) {
 		use_memory = true;
 		if (task_cgroup_memory_init(&slurm_cgroup_conf) !=
@@ -129,7 +129,7 @@ extern int init (void)
 		      plugin_type);
 	}
 
-	if (slurm_cgroup_conf.constrain_devices) {
+	if (false && slurm_cgroup_conf.constrain_devices) {
 		use_devices = true;
 		task_cgroup_devices_init(&slurm_cgroup_conf);
 		debug("%s: now constraining jobs allocated devices",
@@ -157,13 +157,13 @@ extern int init (void)
 extern int fini (void)
 {
 
-	if (use_cpuset) {
+	if (false && use_cpuset) {
 		task_cgroup_cpuset_fini(&slurm_cgroup_conf);
 	}
-	if (use_memory) {
+	if (false && use_memory) {
 		task_cgroup_memory_fini(&slurm_cgroup_conf);
 	}
-	if (use_devices) {
+	if (false && use_devices) {
 		task_cgroup_devices_fini(&slurm_cgroup_conf);
 	}
 	if (use_blkio) {
@@ -237,17 +237,17 @@ extern int task_p_slurmd_release_resources (uint32_t job_id)
 extern int task_p_pre_setuid (stepd_step_rec_t *job)
 {
 
-	if (use_cpuset) {
+	if (false && use_cpuset) {
 		/* we create the cpuset container as we are still root */
 		task_cgroup_cpuset_create(job);
 	}
 
-	if (use_memory) {
+	if (false && use_memory) {
 		/* we create the memory container as we are still root */
 		task_cgroup_memory_create(job);
 	}
 
-	if (use_devices) {
+	if (false && use_devices) {
 		task_cgroup_devices_create(job);
 		/* here we should create the devices container as we are root */
 	}
@@ -266,17 +266,17 @@ extern int task_p_pre_setuid (stepd_step_rec_t *job)
 extern int task_p_pre_launch_priv (stepd_step_rec_t *job)
 {
 
-	if (use_cpuset) {
+	if (false && use_cpuset) {
 		/* attach the task to the cpuset cgroup */
 		task_cgroup_cpuset_attach_task(job);
 	}
 
-	if (use_memory) {
+	if (false && use_memory) {
 		/* attach the task to the memory cgroup */
 		task_cgroup_memory_attach_task(job);
 	}
 
-	if (use_devices) {
+	if (false && use_devices) {
 		/* attach the task to the devices cgroup */
 		task_cgroup_devices_attach_task(job);
 	}
@@ -297,7 +297,7 @@ extern int task_p_pre_launch_priv (stepd_step_rec_t *job)
 extern int task_p_pre_launch (stepd_step_rec_t *job)
 {
 
-	if (use_cpuset) {
+	if (false && use_cpuset) {
 		/* set affinity if requested */
 		if (slurm_cgroup_conf.task_affinity)
 			task_cgroup_cpuset_set_task_affinity(job);
@@ -318,7 +318,7 @@ extern int task_p_post_term (stepd_step_rec_t *job, stepd_step_task_info_t *task
 	/* Only run this on the first call since this will run for
 	 * every task on the node.
 	 */
-	if (use_memory && !ran) {
+	if (false && use_memory && !ran) {
 		task_cgroup_memory_check_oom(job);
 		ran = true;
 	}
@@ -380,19 +380,19 @@ extern char* task_cgroup_create_slurm_cg (xcgroup_ns_t* ns) {
  */
 extern int task_p_add_pid (pid_t pid)
 {
-	if (use_cpuset) {
+	if (false && use_cpuset) {
 		task_cgroup_cpuset_add_pid(pid);
 	}
 
-	if (use_memory) {
+	if (false && use_memory) {
 		task_cgroup_memory_add_pid(pid);
 	}
 
-	if (use_devices) {
+	if (false && use_devices) {
 		task_cgroup_devices_add_pid(pid);
 	}
 
-	if (use_blkio) {
+	if (false && use_blkio) {
 		task_cgroup_blkio_add_pid(pid);
 	}
 

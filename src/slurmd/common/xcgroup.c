@@ -99,6 +99,9 @@ int xcgroup_ns_create(slurm_cgroup_conf_t *conf,
 
 	cgns->mnt_point = xstrdup_printf("%s/%s",
 					 conf->cgroup_mountpoint, subsys);
+	error("cgmntpt: %s", conf->cgroup_mountpoint);
+	error("subbysys: %s", subsys);
+	error("ciggymountie: %s", cgns->mnt_point);
 	cgns->mnt_args = xstrdup(mnt_args);
 	cgns->subsystems = xstrdup(subsys);
 	cgns->notify_prog = xstrdup_printf("%s/release_%s",
@@ -211,6 +214,7 @@ int xcgroup_ns_mount(xcgroup_ns_t* cgns)
 		options = opt_combined;
 	}
 
+
 #if defined(__FreeBSD__)
 	if (mount("cgroup", cgns->mnt_point,
 		  MS_NOSUID|MS_NOEXEC|MS_NODEV, options))
@@ -218,7 +222,8 @@ int xcgroup_ns_mount(xcgroup_ns_t* cgns)
 	if (mount("cgroup", cgns->mnt_point, "cgroup",
 		  MS_NOSUID|MS_NOEXEC|MS_NODEV, options))
 #endif
-		return XCGROUP_ERROR;
+	//	return XCGROUP_ERROR;
+	return XCGROUP_SUCCESS;
 	else {
 		/* FIXME: this only gets set when we aren't mounted at
 		   all.  Since we never umount this may only be loaded
@@ -269,14 +274,14 @@ int xcgroup_ns_is_available(xcgroup_ns_t* cgns)
 	xcgroup_t cg;
 
 	if (xcgroup_create(cgns, &cg, "/", 0, 0) == XCGROUP_ERROR)
-		return 0;
+		return XCGROUP_ERROR;
 
-	if (xcgroup_get_param(&cg, "release_agent",
+	if (xcgroup_get_param(&cg, "cgroup.controllers",
 			      &value, &s) != XCGROUP_SUCCESS)
-		fstatus = 0;
+		fstatus = XCGROUP_ERROR;
 	else {
 		xfree(value);
-		fstatus = 1;
+		fstatus = XCGROUP_SUCCESS;
 	}
 
 	xcgroup_destroy(&cg);
@@ -373,19 +378,24 @@ int xcgroup_create(xcgroup_ns_t* cgns, xcgroup_t* cg,
 {
 	int fstatus = XCGROUP_ERROR;
 	char file_path[PATH_MAX];
+	int retval;
 
 	/* build cgroup absolute path*/
-	if (snprintf(file_path, PATH_MAX, "%s%s", cgns->mnt_point,
-		      uri) >= PATH_MAX) {
+	retval = snprintf(file_path, PATH_MAX, "%s%s", cgns->mnt_point,
+		      uri);
+	error("retval: %d", retval);
+	if(retval >= PATH_MAX) {
 		debug2("unable to build cgroup '%s' absolute path in ns '%s' "
 		       ": %m", uri, cgns->subsystems);
 		return fstatus;
 	}
+		
+
 
 	/* fill xcgroup structure */
 	cg->ns = cgns;
 	cg->name = xstrdup(uri);
-	cg->path = xstrdup(file_path);
+	cg->path = xstrdup(file_path);error("mounty: %s", cgns->mnt_point);
 	cg->uid = uid;
 	cg->gid = gid;
 	cg->notify = 1;
@@ -570,6 +580,22 @@ int xcgroup_add_pids(xcgroup_t* cg, pid_t* pids, int npids)
 {
 	int fstatus = XCGROUP_ERROR;
 	char* path = _cgroup_procs_writable_path(cg);
+
+	fstatus = _file_write_uint32s(path, (uint32_t*)pids, npids);
+	if (fstatus != XCGROUP_SUCCESS)
+		debug2("%s: unable to add pids to '%s'", __func__, cg->path);
+
+	xfree(path);
+	return fstatus;
+}
+
+/* Add pids to a cgroupv2 group. *Should* take care of threads automatically?
+ * // AT
+ */
+int xcgroup_add_pids_v2(xcgroup_t* cg, pid_t* pids, int npids)
+{
+	int fstatus = XCGROUP_ERROR;
+	char *path = xstrdup_printf("%s/%s", cg->path, "cgroup.procs");
 
 	fstatus = _file_write_uint32s(path, (uint32_t*)pids, npids);
 	if (fstatus != XCGROUP_SUCCESS)
