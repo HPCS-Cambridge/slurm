@@ -976,8 +976,8 @@ stepd_stat_jobacct(int fd, uint16_t protocol_version,
 	if (!(resp->jobacct = jobacctinfo_create(NULL)))
 		return rc;
 
-	debug("Entering stepd_stat_jobacct for job %u.%u",
-	      sent->job_id, sent->step_id);
+//	debug("Entering stepd_stat_jobacct for job %u.%u",
+//	      sent->job_id, sent->step_id);
 
 	safe_write(fd, &req, sizeof(int));
 
@@ -993,6 +993,7 @@ stepd_stat_jobacct(int fd, uint16_t protocol_version,
 
 	safe_read(fd, &tasks, sizeof(int));
 	resp->num_tasks = tasks;
+	//error("bytes: %f", resp->jobacct->tot_disk_read);
 
 	return rc;
 rwfail:

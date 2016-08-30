@@ -128,6 +128,8 @@ struct jobacctinfo {
 	jobacct_id_t max_disk_read_id; /* max disk read data task id */
 	double tot_disk_read; /* total local disk read in megabytes */
 	double max_disk_write; /* max disk write data */
+	double disk_r_bw; //AT
+	double disk_w_bw; //AT
 	jobacct_id_t max_disk_write_id; /* max disk write data task id */
 	double tot_disk_write; /* total local disk writes in megabytes */
 

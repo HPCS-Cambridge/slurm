@@ -45,8 +45,12 @@
 
 typedef struct jag_prec {	/* process record */
 	int	act_cpufreq;	/* actual average cpu frequency */
+	double	disk_r_bw;
+	double	disk_w_bw;
 	double	disk_read;	/* local disk read */
 	double	disk_write;	/* local disk write */
+	int	disk_rios;	/* read i/o operations */
+	int	disk_wios;	/* write i/o operations */
 	int	last_cpu;	/* last cpu */
 	int     pages;  /* pages */
 	pid_t	pid;

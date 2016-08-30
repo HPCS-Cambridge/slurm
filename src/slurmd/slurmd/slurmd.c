@@ -324,16 +324,10 @@ _io_monitor(void *arg)
 		i = list_iterator_create(steps); // TODO sort list?
 		while ((stepd = list_next(i))) {
 			if (stepd->stepid == SLURM_BATCH_SCRIPT || stepd->stepid == SLURM_EXTERN_CONT) {
-			//	error("Skipping %u", stepd->stepid);
 				continue; // ignore 'sbatch' stepd (SLURM_BATCH_SCRIPT), 'extern' (SLURM_EXTERN_CONT)
 			}
-			//error("Not skipping %u", stepd->stepid);
-			//debug("Stepd found: %u", stepd->jobid);
 			rc = slurm_job_step_stat(stepd->jobid,stepd->stepid, conf->hostname, SLURM_PROTOCOL_VERSION, &resp);
-			if (rc == SLURM_SUCCESS) {
-			//	debug("Step info found: %u", resp->step_id);
-			}
-			else {
+			if (rc != SLURM_SUCCESS) {
 				slurm_job_step_pids_response_msg_free(resp);
 				resp = NULL;
 				continue;
@@ -341,7 +335,8 @@ _io_monitor(void *arg)
 
 			itr = list_iterator_create(resp->stats_list);
 			while (status = list_next(itr)) {
-				info("[%u:%u] MBytes read in timeframe: %f", stepd->jobid, stepd->stepid, status->jobacct->tot_disk_read);
+				info("[%u:%u] MBytes read in timeframe: %f", stepd->jobid, stepd->stepid, status->jobacct->disk_r_bw);
+				info("[%u:%u] MBytes wrtn in timeframe: %f", stepd->jobid, stepd->stepid, status->jobacct->disk_w_bw);
 			}
 
 			list_iterator_destroy(itr);
@@ -353,7 +348,7 @@ _io_monitor(void *arg)
 		sleep(1);
 	}
 
-	debug("Shutting down IO monitor");
+	info("Shutting down IO monitor");
 
 	_decrement_thd_count();
 	return NULL;
@@ -382,7 +377,8 @@ _spawn_io_monitor(void)
 			fatal("io_monitor: pthread_create: %m");
 		usleep(10);	/* sleep and again */
 	}
-	error("spawned io monitor");
+
+	info("Spawned IO monitor");
 
 	return;
 }

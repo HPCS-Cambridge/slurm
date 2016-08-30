@@ -1600,7 +1600,7 @@ _handle_completion(int fd, stepd_step_rec_t *job, uid_t uid)
 	safe_read(fd, &len, sizeof(int));
 	buf = xmalloc(len);
 	safe_read(fd, buf, len);
-	buffer = create_buf(buf, len);
+	buffer = create_buf(buf, len);error("BOOGIEBOOGIE");
 	jobacctinfo_unpack(&jobacct, SLURM_PROTOCOL_VERSION,
 			   PROTOCOL_TYPE_SLURM, buffer, 1);
 	free_buf(buffer);

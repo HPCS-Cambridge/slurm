@@ -664,6 +664,8 @@ static void _record_profile(struct jobacctinfo *jobacct)
 		FIELD_RSS,
 		FIELD_VMSIZE,
 		FIELD_PAGES,
+		FIELD_READBW,
+		FIELD_WRITEBW,
 		FIELD_READ,
 		FIELD_WRITE,
 		FIELD_CNT
@@ -676,6 +678,8 @@ static void _record_profile(struct jobacctinfo *jobacct)
 		{ "RSS", PROFILE_FIELD_UINT64 },
 		{ "VMSize", PROFILE_FIELD_UINT64 },
 		{ "Pages", PROFILE_FIELD_UINT64 },
+		{ "ReadBW", PROFILE_FIELD_DOUBLE },
+		{ "WriteBW", PROFILE_FIELD_DOUBLE },
 		{ "ReadMB", PROFILE_FIELD_DOUBLE },
 		{ "WriteMB", PROFILE_FIELD_DOUBLE },
 		{ NULL, PROFILE_FIELD_NOT_SET }
@@ -718,6 +722,8 @@ static void _record_profile(struct jobacctinfo *jobacct)
 	if (!jobacct->last_time) {
 		data[FIELD_CPUTIME].d = 0;
 		data[FIELD_CPUUTIL].d = 0.0;
+		data[FIELD_READBW].d = 0.0;
+		data[FIELD_WRITEBW].d = 0.0;
 		data[FIELD_READ].d = 0.0;
 		data[FIELD_WRITE].d = 0.0;
 	} else {
@@ -731,18 +737,22 @@ static void _record_profile(struct jobacctinfo *jobacct)
 				(100.0 * (double)data[FIELD_CPUTIME].d) /
 				((double) et);
 
-		data[FIELD_READ].d = jobacct->tot_disk_read -
-			jobacct->last_tot_disk_read;
+		data[FIELD_READBW].d = jobacct->disk_r_bw;
 
-		data[FIELD_WRITE].d = jobacct->tot_disk_write -
-			jobacct->last_tot_disk_write;
+		data[FIELD_WRITEBW].d = jobacct->disk_w_bw;
+	
+		data[FIELD_READ].d = jobacct->tot_disk_read;// -
+			//jobacct->last_tot_disk_read;
+
+		data[FIELD_WRITE].d = jobacct->tot_disk_write;// -
+//			jobacct->last_tot_disk_write;
 	}
 
-	if (debug_flags & DEBUG_FLAG_PROFILE) {
+	//if (debug_flags & DEBUG_FLAG_PROFILE) {
 		char str[256];
 		info("PROFILE-Task: %s", acct_gather_profile_dataset_str(
 			     dataset, data, str, sizeof(str)));
-	}
+	//}
 	acct_gather_profile_g_add_sample_data(jobacct->dataset_id,
 	                                      (void *)data, jobacct->cur_time);
 }
@@ -892,6 +902,11 @@ extern void jag_common_poll_data(
 			prec->disk_write);
 
 		jobacct->tot_disk_write = prec->disk_write;
+
+		// AT
+		jobacct->disk_r_bw = prec->disk_r_bw;
+		jobacct->disk_w_bw = prec->disk_w_bw;
+		// /AT
 		jobacct->min_cpu =
 			MAX((double)jobacct->min_cpu, cpu_calc);
 

@@ -99,6 +99,72 @@ const uint32_t plugin_version = SLURM_VERSION_NUMBER;
 /* Other useful declarations */
 static slurm_cgroup_conf_t slurm_cgroup_conf;
 
+	 int dev_major;
+	 uint64_t read_bytes, write_bytes, prev_read, prev_write;
+	 static uint64_t tot_read = 0, tot_write = 0;
+	 int rios, wios, prev_rios, prev_wios;
+	 static int tot_rios = 0, tot_wios = 0;
+	 char *blkio_bytes, *next_device;
+	 size_t blkio_bytes_size;
+	int _shutdown = 0;
+
+void _ping_io_cgroup(void *arg)
+{
+	while(!_shutdown) {
+		xcgroup_get_param(&step_blkio_cg, "io.stat",
+			&blkio_bytes, &blkio_bytes_size);
+
+		if (blkio_bytes) {
+			error("io.stat: %s", blkio_bytes);
+
+			next_device = blkio_bytes;
+			prev_read = tot_read; tot_read = 0;
+			prev_write = tot_write; tot_write = 0;
+			prev_rios = tot_rios; tot_rios = 0;
+			prev_wios = tot_wios; tot_wios = 0;
+			//info("tot_read: %"PRIu64", prev_read: %"PRIu64"", tot_read, prev_read);
+
+			while ((sscanf(next_device, "%d:", &dev_major)) > 0) {
+				if ((dev_major > 239) && (dev_major < 255)) {
+					/* skip experimental device codes */
+					continue;
+				}
+
+				next_device = strstr(next_device, "rbytes=");
+				sscanf(next_device, "rbytes=%"PRIu64"", &read_bytes);
+				next_device = strstr(next_device, "wbytes=");
+				sscanf(next_device, "wbytes=%"PRIu64"", &write_bytes);
+				next_device = strstr(next_device, "rios=");
+				sscanf(next_device, "rios=%d", &rios);
+				next_device = strstr(next_device, "wios=");
+				sscanf(next_device, "wios=%d", &wios);
+
+				tot_read+=read_bytes;
+				tot_write+=write_bytes;
+				tot_rios += rios;
+				tot_wios += wios;
+			}
+
+			//info("tot_read: %"PRIu64", prev_read: %"PRIu64"", tot_read, tot_read - prev_read);
+		}
+
+		sleep(5);
+	}
+	return;
+}
+
+static void _spawn_io_ping(void)
+{
+	int rc, retries = 0;
+	pthread_attr_t attr;
+	pthread_t id;
+
+	slurm_attr_init(&attr);
+	rc = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	pthread_create(&id, &attr, &_ping_io_cgroup, NULL);
+	return;
+}
+
 static void _prec_extra(jag_prec_t *prec)
 {
 	unsigned long utime, stime, total_rss, total_pgpgin;
@@ -152,46 +218,49 @@ static void _prec_extra(jag_prec_t *prec)
 	 * counts of bytes read and written for physical disk I/Os only.
 	 * These counts do not include disk I/Os satisfied from cache.
 	 */
-	 int dev_major;
-	 uint64_t read_bytes, write_bytes, prev_read, prev_write;
-	 static uint64_t tot_read = 0, tot_write = 0;
-	 int rios, wios, prev_rios, prev_wios;
-	 static int tot_rios = 0, tot_wios = 0;
-	 char *blkio_bytes, *next_device;
-	 size_t blkio_bytes_size;
-	 xcgroup_get_param(&step_blkio_cg, "io.stat",
-	                   &blkio_bytes, &blkio_bytes_size);
-	 error("io.stat: %s", blkio_bytes);
+	 //int dev_major;
+	 //uint64_t read_bytes, write_bytes, prev_read, prev_write;
+	 //static uint64_t tot_read = 0, tot_write = 0;
+	 //int rios, wios, prev_rios, prev_wios;
+	 //static int tot_rios = 0, tot_wios = 0;
+	 //char *blkio_bytes, *next_device;
+	 //size_t blkio_bytes_size;
 
-	 next_device = blkio_bytes;
-	 //tot_read = tot_write = 0;
-	 //tot_rios = tot_wios = 0;
-	 prev_read = tot_read; tot_read = 0;
-	 prev_write = tot_write; tot_write = 0;
-	 prev_rios = tot_rios; tot_rios = 0;
-	 prev_wios = tot_rios; tot_wios = 0;
-	 error("tot_read: %"PRIu64", prev_read: %"PRIu64"", tot_read, prev_read);
-	 while ((sscanf(next_device, "%d:", &dev_major)) > 0) {
-		if ((dev_major > 239) && (dev_major < 255))
-			/* skip experimental device codes */
-		continue;
-		next_device = strstr(next_device, "rbytes=");
-		sscanf(next_device, "rbytes=%"PRIu64"", &read_bytes);
-		next_device = strstr(next_device, "wbytes=");
-		sscanf(next_device, "wbytes=%"PRIu64"", &write_bytes);
-		next_device = strstr(next_device, "rios=");
-		sscanf(next_device, "rios=%d", &rios);
-		next_device = strstr(next_device, "wios=");
-		sscanf(next_device, "wios=%d", &wios);
-		tot_read+=read_bytes;
-		tot_write+=write_bytes;
-		tot_rios += rios;
-		tot_wios += wios;
-		//next_device = strstr(next_device, "Total");
-	 }
-	 error("tot_read: %"PRIu64", prev_read: %"PRIu64"", tot_read, tot_read - prev_read);
-	 prec->disk_read = (double)(tot_read - prev_read) / (double)1048576;
-	 prec->disk_write = (double)(tot_write - prev_write) / (double)1048576;
+	 //xcgroup_get_param(&step_blkio_cg, "io.stat",
+	 //                  &blkio_bytes, &blkio_bytes_size);
+	 //error("io.stat: %s", blkio_bytes);
+
+	 //next_device = blkio_bytes;
+	 ////tot_read = tot_write = 0;
+	 ////tot_rios = tot_wios = 0;
+	 //prev_read = tot_read; tot_read = 0;
+	 //prev_write = tot_write; tot_write = 0;
+	 //prev_rios = tot_rios; tot_rios = 0;
+	 //prev_wios = tot_wios; tot_wios = 0;
+	 //error("tot_read: %"PRIu64", prev_read: %"PRIu64"", tot_read, prev_read);
+	 //while ((sscanf(next_device, "%d:", &dev_major)) > 0) {
+	 //       if ((dev_major > 239) && (dev_major < 255))
+	 //       	/* skip experimental device codes */
+	 //       continue;
+	 //       next_device = strstr(next_device, "rbytes=");
+	 //       sscanf(next_device, "rbytes=%"PRIu64"", &read_bytes);
+	 //       next_device = strstr(next_device, "wbytes=");
+	 //       sscanf(next_device, "wbytes=%"PRIu64"", &write_bytes);
+	 //       next_device = strstr(next_device, "rios=");
+	 //       sscanf(next_device, "rios=%d", &rios);
+	 //       next_device = strstr(next_device, "wios=");
+	 //       sscanf(next_device, "wios=%d", &wios);
+	 //       tot_read+=read_bytes;
+	 //       tot_write+=write_bytes;
+	 //       tot_rios += rios;
+	 //       tot_wios += wios;
+	 //       //next_device = strstr(next_device, "Total");
+	 //}
+	 //error("tot_read: %"PRIu64", prev_read: %"PRIu64"", tot_read, tot_read - prev_read);
+	 prec->disk_r_bw = (double)(tot_read - prev_read) / (double)1048576;
+	 prec->disk_w_bw = (double)(tot_write - prev_write) / (double)1048576;
+	 prec->disk_read = (double)read_bytes/1048576.0;//(double)(tot_read - prev_read) / (double)1048576;
+	 prec->disk_write = (double)write_bytes/1048576.0;
 	 prec->disk_rios = tot_rios - prev_rios;
 	 prec->disk_wios = tot_wios - prev_wios;
 
@@ -273,6 +342,7 @@ extern int init (void)
 			free_slurm_cgroup_conf(&slurm_cgroup_conf);
 			return SLURM_ERROR;
 		}
+		_spawn_io_ping();
 	}
 
 	debug("%s loaded", plugin_name);
@@ -290,6 +360,7 @@ extern int fini (void)
 		/* unload configuration */
 		free_slurm_cgroup_conf(&slurm_cgroup_conf);
 	}
+	_shutdown = 1;
 	return SLURM_SUCCESS;
 }
 

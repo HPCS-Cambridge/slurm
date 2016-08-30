@@ -637,6 +637,8 @@ extern jobacctinfo_t *jobacctinfo_create(jobacct_id_t *jobacct_id)
 	memcpy(&jobacct->max_disk_read_id, jobacct_id, sizeof(jobacct_id_t));
 	jobacct->tot_disk_read = 0;
 	jobacct->max_disk_write = 0;
+	jobacct->disk_r_bw = 0; //AT
+	jobacct->disk_w_bw = 0; //AT
 	memcpy(&jobacct->max_disk_write_id, jobacct_id, sizeof(jobacct_id_t));
 	jobacct->tot_disk_write = 0;
 
@@ -670,6 +672,7 @@ extern int jobacctinfo_setinfo(jobacctinfo_t *jobacct,
 		memcpy(jobacct, send, sizeof(struct jobacctinfo));
 		break;
 	case JOBACCT_DATA_PIPE:
+		error("PACK - JOBACCT_DATA_PIPE: %d >= %d", protocol_version, SLURM_MIN_PROTOCOL_VERSION);
 		if (protocol_version >= SLURM_MIN_PROTOCOL_VERSION) {
 			int len;
 			Buf buffer = init_buf(0);
@@ -789,6 +792,7 @@ extern int jobacctinfo_getinfo(
 		memcpy(send, jobacct, sizeof(struct jobacctinfo));
 		break;
 	case JOBACCT_DATA_PIPE:
+		//error("UNPACK - JOBACCT_DATA_PIPE: %d >= %d", protocol_version, SLURM_MIN_PROTOCOL_VERSION);
 		if (protocol_version >= SLURM_MIN_PROTOCOL_VERSION) {
 			char* buf;
 			int len;
@@ -889,6 +893,7 @@ extern void jobacctinfo_pack(jobacctinfo_t *jobacct,
 			     uint16_t rpc_version, uint16_t protocol_type,
 			     Buf buffer)
 {
+//	error("ZEEEEIKOOC");
 	bool no_pack;
 
 	no_pack = (!plugin_polling && (protocol_type != PROTOCOL_TYPE_DBD));
@@ -921,6 +926,8 @@ extern void jobacctinfo_pack(jobacctinfo_t *jobacct,
 		packdouble((double)jobacct->tot_disk_read, buffer);
 		packdouble((double)jobacct->max_disk_write, buffer);
 		packdouble((double)jobacct->tot_disk_write, buffer);
+		packdouble((double)jobacct->disk_r_bw, buffer); //AT
+		packdouble((double)jobacct->disk_w_bw, buffer); //AT
 
 		_pack_jobacct_id(&jobacct->max_vsize_id, rpc_version, buffer);
 		_pack_jobacct_id(&jobacct->max_rss_id, rpc_version, buffer);
@@ -975,6 +982,7 @@ extern int jobacctinfo_unpack(jobacctinfo_t **jobacct,
 			      uint16_t rpc_version, uint16_t protocol_type,
 			      Buf buffer, bool alloc)
 {
+//	error("COOKIEEEEZ");
 	uint32_t uint32_tmp;
 	uint8_t  uint8_tmp;
 
@@ -1011,6 +1019,8 @@ extern int jobacctinfo_unpack(jobacctinfo_t **jobacct,
 		safe_unpackdouble(&(*jobacct)->tot_disk_read, buffer);
 		safe_unpackdouble(&(*jobacct)->max_disk_write, buffer);
 		safe_unpackdouble(&(*jobacct)->tot_disk_write, buffer);
+		safe_unpackdouble(&(*jobacct)->disk_r_bw, buffer); //AT
+		safe_unpackdouble(&(*jobacct)->disk_w_bw, buffer); //AT
 
 		if (_unpack_jobacct_id(&(*jobacct)->max_vsize_id, rpc_version,
 			buffer) != SLURM_SUCCESS)
@@ -1191,6 +1201,10 @@ extern void jobacctinfo_aggregate(jobacctinfo_t *dest, jobacctinfo_t *from)
 		dest->max_disk_write_id = from->max_disk_write_id;
 	}
 	dest->tot_disk_write += from->tot_disk_write;
+
+	// AT
+	dest->disk_r_bw += from->disk_r_bw;
+	dest->disk_w_bw += from->disk_w_bw;
 }
 
 extern void jobacctinfo_2_stats(slurmdb_stats_t *stats, jobacctinfo_t *jobacct)
