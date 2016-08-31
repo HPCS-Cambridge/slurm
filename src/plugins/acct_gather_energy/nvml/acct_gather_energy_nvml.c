@@ -68,6 +68,27 @@
 #include <unistd.h>
 //#include <math.h>//Only for round() right now...
 
+#include <nvidia/gdk/nvml.h>
+
+#define _DEBUG 1
+#define _DEBUG_ENERGY 1
+
+//#define MAX_GPUS 8
+
+#define NVCHECK(_err) {								\
+	if(NVML_SUCCESS != _err) {					\
+		error("nvml: %s", __FUNCTION__);	\
+		return SLURM_ERROR;								\
+	}																		\
+}
+
+#define NVCHECKV(_err) {							\
+	if(NVML_SUCCESS != _err) {					\
+		error("nvml: %s", __FUNC__);			\
+		return;														\
+	}																		\
+}
+
 /*
  * These variables are required by the generic plugin interface.  If they
  * are not found in the plugin, the plugin loader will ignore it.
@@ -103,7 +124,9 @@ static uint64_t debug_flags = 0;
 static int dataset_id = -1; /* id of the dataset for profile data */
 
 // END vars_from_rapl
+static nvmlReturn_t nverr = NVML_SUCCESS;
 static unsigned int num_gpus = 0;
+static nvmlDevice_t *gpus = NULL;
 static uint64_t gpu_watts[MAX_GPUS];
 static acct_gather_energy_t *local_energy = NULL;
 
@@ -122,20 +145,146 @@ static bool _run_in_daemon(void)
 
 static void _get_joules_task(acct_gather_energy_t *energy) // One of our main buddies
 {
+	int i;
+	int power, power_sum = 0;
+	int time_diff;
+	time_t prev_poll_time;
+
+	xassert(_run_in_daemon());
+
+
+	for (i = 0; i < num_gpus; i++) {
+		NVCHECK(nvmlDeviceGetPowerUsage(gpus[i], &power));
+		power = power/1000;
+		power_sum += power;
+		energy->gpu_watts[i] = (uint64_t)power;
+	}
+
+	prev_poll_time = energy->poll_time;
+
+	if (energy->poll_time) {
+		energy->poll_time = time(NULL);
+		time_diff = energy->poll_time - prev_poll_time;
+	}
+	else {
+		energy->poll_time = time(NULL);
+		time_diff = 0;
+	}
+	
+	energy->consumed_energy = energy->previous_consumed_energy + (power_sum * time_diff);
+	energy->current_watts = (uint32_t)power_sum;
+
+	if (energy->base_consumed_energy > (power_sum * time_diff)) {
+		energy->base_consumed_energy = power_sum * time_diff;
+		energy->base_watts = power_sum;
+	}
+
+	energy->previous_consumed_energy = energy->consumed_energy;
+
+	if (debug_flags & DEBUG_FLAG_ENERGY)
+		info("_get_joules_task: current %u Watts, "
+		     "consumed %"PRIu64"",
+		     power_sum, energy->consumed_energy);
 }
 
 static int _running_profile(void)
 {
-	return SLURM_SUCCESS;
+	static bool run = false;
+	static uint32_t profile_opt = ACCT_GATHER_PROFILE_NOT_SET;
+
+	if (profile_opt == ACCT_GATHER_PROFILE_NOT_SET) {
+		acct_gather_profile_g_get(ACCT_GATHER_PROFILE_RUNNING,
+					  &profile_opt);
+		if (profile_opt & ACCT_GATHER_PROFILE_ENERGY)
+			run = true;
+	}
+
+	return run;
 }
 
 static int _send_profile(void)
-{return SLURM_SUCCESS;
+{
+	int i;
+	char name[7];
+	uint64_t curr_watts;
+	acct_gather_profile_dataset_t *dataset = NULL;
+
+	if (!_running_profile())
+		return SLURM_SUCCESS;
+
+	if (debug_flags & DEBUG_FLAG_ENERGY)
+		info("_send_profile: consumed %u watts",
+		     local_energy->current_watts);
+
+	if (dataset_id < 0) {
+		/* Create data set template first */
+		if (!num_gpus) {
+			error("Energy: No GPUs identified");
+			return SLURM_ERROR;
+		}
+		dataset = xmalloc((num_gpus+1) * sizeof(acct_gather_profile_dataset_t));
+		if (!dataset) {
+			error("Energy: Could not allocate memory for dataset");
+			return SLURM_ERROR;
+		}
+		dataset[0].name = "Power";
+		dataset[0].type = PROFILE_FIELD_UINT64;
+		for (i = 1; i < num_gpus; i++) {
+			sprintf(name, "GPU%d", i);
+			dataset[i].name = xstrdup(name);
+			dataset[i].type = PROFILE_FIELD_UINT64;
+		}
+
+		dataset[num_gpus].name = NULL;
+		dataset[num_gpus].type = PROFILE_FIELD_NOT_SET;
+
+		/* Now create data set */
+		dataset_id = acct_gather_profile_g_create_dataset(
+			"Energy", NO_PARENT, dataset);
+
+		for (i = 1; i < num_gpus; i++) {
+			xfree(dataset[i].name);
+		}
+		xfree(dataset); // Done with this
+
+		if (debug_flags & DEBUG_FLAG_ENERGY)
+			debug("Energy: dataset created (id = %d)", dataset_id);
+		if (dataset_id == SLURM_ERROR) {
+			error("Energy: Failed to create the dataset for NVML");
+			return SLURM_ERROR;
+		}
+	}
+
+	//curr_watts = (uint64_t)local_energy->current_watts; error("Current watts: %lu", curr_watts);
+	if (debug_flags & DEBUG_FLAG_PROFILE) {
+		info("PROFILE-Energy: power=%u", local_energy->current_watts);
+	}
+	for(i = 0; i < num_gpus; i++) {
+		gpu_watts[i] = local_energy->gpu_watts[i];
+	}
+		
+
+	return acct_gather_profile_g_add_sample_data(dataset_id,
+	                                             (void *)gpu_watts,
+						     local_energy->poll_time);
 }
 
 extern int acct_gather_energy_p_update_node_energy(void)
 {
 	int rc = SLURM_SUCCESS;
+	//error("update node energy");
+
+	xassert(_run_in_daemon());
+
+	if (local_energy->current_watts == NO_VAL) {
+		error("update_node_energy, local energy, no val");
+	}
+
+	if (local_energy->current_watts == NO_VAL)
+		return rc;
+
+	_get_joules_task(local_energy);
+
 	return rc;
 }
 
@@ -145,11 +294,64 @@ extern int acct_gather_energy_p_update_node_energy(void)
  */
 extern int init(void)
 {
+	int i;
+	debug_flags = slurm_get_debug_flags();
+
+	if(!_run_in_daemon()) {
+		return SLURM_SUCCESS;
+	}
+
+	nverr = nvmlInit();
+	NVCHECK(nverr);
+	debug("NVML initialised");
+	NVCHECK(nvmlDeviceGetCount(&num_gpus));
+	debug("Found %d GPUs", num_gpus);
+
+	if (num_gpus > MAX_GPUS) {
+		error("Too many GPUS!");
+		return SLURM_ERROR;
+	}
+
+	gpus = xmalloc(num_gpus*sizeof(nvmlDevice_t));
+	if (!gpus) {
+		error("Energy: init: Could not allocate memory for GPU devices");
+		return SLURM_ERROR;
+	}
+
+	for (i = 0; i < num_gpus; i++) {
+		NVCHECK(nvmlDeviceGetHandleByIndex(i, &gpus[i]));
+	};
+
+	//gpu_watts = xmalloc(num_gpus * sizeof(int));
+	//if (!gpu_watts) {
+	//	error("Energy: init: Could not allocate memory for GPU power");
+	//	return SLURM_ERROR;
+	//}
+
+	local_energy = acct_gather_energy_alloc(1); // WHY is there no retval checking in this func?
+	local_energy->num_gpus = num_gpus;
+//	local_energy->gpu_watts = gpu_watts;
+
+	/* put anything that requires the .conf being read in
+	   acct_gather_energy_p_conf_parse
+	*/
+
 	return SLURM_SUCCESS;
 }
 
 extern int fini(void)
 {
+	if (!_run_in_daemon())
+		return SLURM_SUCCESS;
+
+	nverr = nvmlShutdown();
+	NVCHECK(nverr);
+	debug("NVML Terminated");
+
+	acct_gather_energy_destroy(local_energy);
+	local_energy = NULL;
+	xfree(gpus); // DO NOT free contained pointers, that'll break. Hard.
+	gpus = NULL;
 	return SLURM_SUCCESS;
 }
 
@@ -170,6 +372,7 @@ void _copy_energy(acct_gather_energy_t *energy)
 		xfree(energy->gpu_watts);
 	}*/
 
+	memcpy(energy, local_energy, sizeof(acct_gather_energy_t));
 
 	/*if (num_gpus && local_energy->gpu_watts) {
 		energy->gpu_watts = xmalloc(num_gpus * sizeof(uint64_t));
@@ -186,6 +389,41 @@ extern int acct_gather_energy_p_get_data(enum acct_energy_type data_type,
 					 void *data) //TODO
 {
 	int rc = SLURM_SUCCESS;
+	acct_gather_energy_t *energy = (acct_gather_energy_t *)data;
+	time_t *last_poll = (time_t *)data;
+	uint16_t *sensor_cnt = (uint16_t *)data;
+
+	xassert(_run_in_daemon());
+	//error("[NVML] get_data: dt = %d", data_type);
+
+	switch (data_type) {
+	case ENERGY_DATA_JOULES_TASK:
+	case ENERGY_DATA_NODE_ENERGY_UP:
+		if (local_energy->current_watts == NO_VAL)
+			energy->consumed_energy = NO_VAL;
+		else
+			_get_joules_task(energy);
+		break;
+	case ENERGY_DATA_STRUCT:
+	case ENERGY_DATA_NODE_ENERGY:
+		if (energy == local_energy) { // Probably unnecessary;
+			break;
+		}
+		_copy_energy(energy);
+		break;
+	case ENERGY_DATA_LAST_POLL:
+		*last_poll = local_energy->poll_time;
+		break;
+	case ENERGY_DATA_SENSOR_CNT:
+		*sensor_cnt = num_gpus; // This right? originally just '1' (int not char).
+		error("TODO: WHAT SHOULD WE DO WITH ENERGY_DATA_SENSORS_CNT?"); //TODO
+		break;
+	default:
+		error("acct_gather_energy_p_get_data: unknown enum %d",
+		      data_type);
+		rc = SLURM_ERROR;
+		break;
+	}
 	return rc;
 }
 
@@ -193,6 +431,26 @@ extern int acct_gather_energy_p_set_data(enum acct_energy_type data_type,
 					 void *data) // TODO
 {
 	int rc = SLURM_SUCCESS;
+
+	xassert(_run_in_daemon());
+
+	//error("[NVML] set_data");
+
+	switch (data_type) {
+	case ENERGY_DATA_RECONFIG:
+		debug_flags = slurm_get_debug_flags();
+		break;
+	case ENERGY_DATA_PROFILE:
+		_get_joules_task(local_energy);
+		_send_profile();
+		break;
+	default:
+		error("acct_gather_energy_p_set_data: unknown enum %d",
+		      data_type);
+		rc = SLURM_ERROR;
+		break;
+	}
+
 	return rc;
 }
 
@@ -204,6 +462,12 @@ extern void acct_gather_energy_p_conf_options(s_p_options_t **full_options,
 
 extern void acct_gather_energy_p_conf_set(s_p_hashtbl_t *tbl) //TODO
 {
+
+	if (!_run_in_daemon())
+		return;
+
+	debug("%s loaded", plugin_name);
+
 	return;
 }
 
