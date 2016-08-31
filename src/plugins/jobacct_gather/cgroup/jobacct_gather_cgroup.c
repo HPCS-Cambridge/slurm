@@ -125,10 +125,10 @@ void _ping_io_cgroup(void *arg)
 			//info("tot_read: %"PRIu64", prev_read: %"PRIu64"", tot_read, prev_read);
 
 			while ((sscanf(next_device, "%d:", &dev_major)) > 0) {
-				if ((dev_major > 239) && (dev_major < 255)) {
-					/* skip experimental device codes */
-					continue;
-				}
+				//if ((dev_major > 239) && (dev_major < 255)) {
+				//	/* skip experimental device codes */
+				//	continue;
+				//}
 
 				next_device = strstr(next_device, "rbytes=");
 				sscanf(next_device, "rbytes=%"PRIu64"", &read_bytes);
