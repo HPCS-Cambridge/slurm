@@ -99,23 +99,24 @@ const uint32_t plugin_version = SLURM_VERSION_NUMBER;
 /* Other useful declarations */
 static slurm_cgroup_conf_t slurm_cgroup_conf;
 
-	 int dev_major;
-	 uint64_t read_bytes, write_bytes, prev_read, prev_write;
-	 static uint64_t tot_read = 0, tot_write = 0;
-	 int rios, wios, prev_rios, prev_wios;
-	 static int tot_rios = 0, tot_wios = 0;
-	 char *blkio_bytes, *next_device;
-	 size_t blkio_bytes_size;
-	int _shutdown = 0;
+int dev_major;
+uint64_t r_read_bytes, read_bytes, r_write_bytes, write_bytes, prev_read, prev_write;
+static uint64_t tot_read = 0, tot_write = 0;
+int r_rios, rios, r_wios, wios, prev_rios, prev_wios;
+static int tot_rios = 0, tot_wios = 0;
+char *blkio_bytes, *next_device;
+size_t blkio_bytes_size;
+int _shutdown = 0;
+pthread_t io_thread;
 
-void _ping_io_cgroup(void *arg)
+static void *_ping_io_cgroup(void *arg)
 {
 	while(!_shutdown) {
 		xcgroup_get_param(&step_blkio_cg, "io.stat",
 			&blkio_bytes, &blkio_bytes_size);
 
 		if (blkio_bytes) {
-			error("io.stat: %s", blkio_bytes);
+			debug("io.stat: %s", blkio_bytes);
 
 			next_device = blkio_bytes;
 			prev_read = tot_read; tot_read = 0;
@@ -123,45 +124,54 @@ void _ping_io_cgroup(void *arg)
 			prev_rios = tot_rios; tot_rios = 0;
 			prev_wios = tot_wios; tot_wios = 0;
 			//info("tot_read: %"PRIu64", prev_read: %"PRIu64"", tot_read, prev_read);
+			read_bytes = 0;
+			write_bytes = 0;
+			rios = 0;
+			wios = 0;
 
-			while ((sscanf(next_device, "%d:", &dev_major)) > 0) {
-				//if ((dev_major > 239) && (dev_major < 255)) {
-				//	/* skip experimental device codes */
-				//	continue;
-				//}
+			while ((sscanf(next_device, "%d:", &dev_major) > 0) || (sscanf(next_device, "%*[^\n]%d:", &dev_major) > 0)) {
+				next_device++;//strstr can't do indexes... so workaround infinitely looping to same point/instance
+				if (dev_major != 8) {
+					/* skip experimental device codes */
+					next_device = strstr(next_device, "wios");
+					continue;
+				}
 
 				next_device = strstr(next_device, "rbytes=");
-				sscanf(next_device, "rbytes=%"PRIu64"", &read_bytes);
+				sscanf(next_device, "rbytes=%"PRIu64"", &r_read_bytes);
 				next_device = strstr(next_device, "wbytes=");
-				sscanf(next_device, "wbytes=%"PRIu64"", &write_bytes);
+				sscanf(next_device, "wbytes=%"PRIu64"", &r_write_bytes);
 				next_device = strstr(next_device, "rios=");
-				sscanf(next_device, "rios=%d", &rios);
+				sscanf(next_device, "rios=%d", &r_rios);
 				next_device = strstr(next_device, "wios=");
-				sscanf(next_device, "wios=%d", &wios);
+				sscanf(next_device, "wios=%d", &r_wios);
 
-				tot_read+=read_bytes;
-				tot_write+=write_bytes;
-				tot_rios += rios;
-				tot_wios += wios;
+				read_bytes+=r_read_bytes;
+				write_bytes+=r_write_bytes;
+				rios += r_rios;
+				wios += r_wios;
 			}
 
-			//info("tot_read: %"PRIu64", prev_read: %"PRIu64"", tot_read, tot_read - prev_read);
+			tot_read+=read_bytes;
+			tot_write+=write_bytes;
+			tot_rios += rios;
+			tot_wios += wios;
 		}
 
 		sleep(5);
 	}
-	return;
+	return NULL;
 }
 
 static void _spawn_io_ping(void)
 {
 	int rc, retries = 0;
 	pthread_attr_t attr;
-	pthread_t id;
+	//pthread_t id;
 
 	slurm_attr_init(&attr);
-	rc = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	pthread_create(&id, &attr, &_ping_io_cgroup, NULL);
+	rc = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+	pthread_create(&io_thread, &attr, &_ping_io_cgroup, NULL);
 	return;
 }
 
@@ -361,6 +371,7 @@ extern int fini (void)
 		free_slurm_cgroup_conf(&slurm_cgroup_conf);
 	}
 	_shutdown = 1;
+	pthread_join(io_thread, NULL);
 	return SLURM_SUCCESS;
 }
 
