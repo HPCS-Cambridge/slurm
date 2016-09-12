@@ -170,7 +170,7 @@ static void _spawn_io_ping(void)
 	//pthread_t id;
 
 	slurm_attr_init(&attr);
-	rc = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+	rc = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	pthread_create(&io_thread, &attr, &_ping_io_cgroup, NULL);
 	return;
 }
@@ -371,7 +371,6 @@ extern int fini (void)
 		free_slurm_cgroup_conf(&slurm_cgroup_conf);
 	}
 	_shutdown = 1;
-	pthread_join(io_thread, NULL);
 	return SLURM_SUCCESS;
 }
 
